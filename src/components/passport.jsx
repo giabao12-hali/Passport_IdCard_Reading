@@ -438,7 +438,56 @@ const PassportRead = () => {
                                                     <p>Ngày hết hạn: {formatDate(currentCustomersEtours[index].expireDate)}</p>
                                                 </>
                                             ) : (
-                                                <p className='text-center font-semibold text-lg'>Chưa có thông tin khách hàng</p>
+                                                <div>
+                                                    <p>
+                                                        Họ tên:
+                                                        <span>
+                                                            &nbsp;Chưa có thông tin
+                                                        </span>
+                                                    </p>
+                                                    <p>
+                                                        Giới tính:
+                                                        <span>
+                                                            &nbsp;Chưa có thông tin
+                                                        </span>
+                                                    </p>
+                                                    <p>
+                                                        Nơi sinh:
+                                                        <span>
+                                                            &nbsp;Chưa có thông tin
+                                                        </span>
+                                                    </p>
+                                                    <p>
+                                                        Quốc tịch:
+                                                        <span>
+                                                            &nbsp;Chưa có thông tin
+                                                        </span>
+                                                    </p>
+                                                    <p>
+                                                        Số Passport:
+                                                        <span>
+                                                            &nbsp;Chưa có thông tin
+                                                        </span>
+                                                    </p>
+                                                    <p>
+                                                        Ngày sinh:
+                                                        <span>
+                                                            &nbsp;Chưa có thông tin
+                                                        </span>
+                                                    </p>
+                                                    <p>
+                                                        Ngày cấp:
+                                                        <span>
+                                                            &nbsp;Chưa có thông tin
+                                                        </span>
+                                                    </p>
+                                                    <p>
+                                                        Ngày hết hạn:
+                                                        <span>
+                                                            &nbsp;Chưa có thông tin
+                                                        </span>
+                                                    </p>
+                                                </div>
                                             )}
                                         </div>
                                     ))
@@ -535,7 +584,56 @@ const PassportRead = () => {
                                                         </p>
                                                     </div>
                                                 ) : (
-                                                    <p className='text-center font-semibold text-lg mobile:text-base'>Chưa có thông tin khách hàng</p>
+                                                    <div>
+                                                        <p>
+                                                            Họ tên:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Giới tính:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Nơi sinh:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Quốc tịch:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Số Passport:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Ngày sinh:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Ngày cấp:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Ngày hết hạn:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                    </div>
                                                 )}
                                             </div>
                                         );

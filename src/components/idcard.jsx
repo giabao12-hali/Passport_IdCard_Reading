@@ -68,10 +68,10 @@ const IdCardRead = () => {
                     fullName: member.fullName,
                     gender: member.gender === 1 ? 'Nam' : 'Nữ',
                     personalKind: member.personalKind === 0 ? 'Người lớn' : 'Trẻ em',
-                    dateOfBirth: member.visaInfor?.dateOfBirth || 'N/A',
-                    issueDate: member.visaInfor?.issueDate || 'Chưa có thông tin',
-                    expireDate: member.visaInfor?.expireDate || 'Chưa có thông tin',
-                    documentNumber: member.visaInfor?.documentNumber || 'Chưa có thông tin',
+                    dateOfBirth: member.idCardInfor?.dateOfBirth || 'N/A',
+                    issueDate: member.idCardInfor?.issueDate || 'Chưa có thông tin',
+                    expireDate: member.idCardInfor?.expireDate || 'Chưa có thông tin',
+                    documentNumber: member.idCardInfor?.documentNumber || 'Chưa có thông tin',
                     birthPlace: member.birthPlace || 'Chưa có thông tin',
                     address: member.address || 'Chưa có thông tin',
                     nationality: member.nationality || 'Chưa có thông tin',
@@ -432,7 +432,56 @@ const IdCardRead = () => {
                                                     <p>Ngày hết hạn: {formatDate(currentCustomersEtours[index].expireDate)}</p>
                                                 </>
                                             ) : (
-                                                <p className='text-center font-semibold text-lg'>Chưa có thông tin khách hàng</p>
+                                                <div>
+                                                    <p>
+                                                        Họ tên:
+                                                        <span>
+                                                            &nbsp;Chưa có thông tin
+                                                        </span>
+                                                    </p>
+                                                    <p>
+                                                        Giới tính:
+                                                        <span>
+                                                            &nbsp;Chưa có thông tin
+                                                        </span>
+                                                    </p>
+                                                    <p>
+                                                        Nơi sinh:
+                                                        <span>
+                                                            &nbsp;Chưa có thông tin
+                                                        </span>
+                                                    </p>
+                                                    <p>
+                                                        Quốc tịch:
+                                                        <span>
+                                                            &nbsp;Chưa có thông tin
+                                                        </span>
+                                                    </p>
+                                                    <p>
+                                                        Số Passport:
+                                                        <span>
+                                                            &nbsp;Chưa có thông tin
+                                                        </span>
+                                                    </p>
+                                                    <p>
+                                                        Ngày sinh:
+                                                        <span>
+                                                            &nbsp;Chưa có thông tin
+                                                        </span>
+                                                    </p>
+                                                    <p>
+                                                        Ngày cấp:
+                                                        <span>
+                                                            &nbsp;Chưa có thông tin
+                                                        </span>
+                                                    </p>
+                                                    <p>
+                                                        Ngày hết hạn:
+                                                        <span>
+                                                            &nbsp;Chưa có thông tin
+                                                        </span>
+                                                    </p>
+                                                </div>
                                             )}
                                         </div>
                                     ))
@@ -504,30 +553,79 @@ const IdCardRead = () => {
                                                         <p>
                                                             Số CCCD/CMND:
                                                             <span className={(etourCustomer && etourCustomer.documentNumber !== idCardCustomer.idCardNo) || !etourCustomer ? "text-red-600" : ""}>
-                                                                &nbsp;{idCardCustomer.idCardNo}
+                                                                &nbsp;{idCardCustomer.idCardNo || 'Chưa có thông tin'}
                                                             </span>
                                                         </p>
                                                         <p>
                                                             Ngày sinh:
                                                             <span className={(etourCustomer && formatDate(etourCustomer.dateOfBirth) !== formatDate(idCardCustomer.dateOfBirth)) || !etourCustomer ? "text-red-600" : ""}>
-                                                                &nbsp;{formatDate(idCardCustomer.dateOfBirth)}
+                                                                &nbsp;{formatDate(idCardCustomer.dateOfBirth || 'Chưa có thông tin')}
                                                             </span>
                                                         </p>
                                                         <p>
                                                             Ngày cấp:
                                                             <span className={(etourCustomer && formatDate(etourCustomer.issueDate) !== formatDate(idCardCustomer.dateOfIssue)) || !etourCustomer ? "text-red-600" : ""}>
-                                                                &nbsp;{formatDate(idCardCustomer.dateOfIssue)}
+                                                                &nbsp;{formatDate(idCardCustomer.dateOfIssue || 'Chưa có thông tin')}
                                                             </span>
                                                         </p>
                                                         <p>
                                                             Ngày hết hạn:
                                                             <span className={(etourCustomer && formatDate(etourCustomer.expireDate) !== formatDate(idCardCustomer.dateOfExpiry)) || !etourCustomer ? "text-red-600" : ""}>
-                                                                &nbsp;{formatDate(idCardCustomer.dateOfExpiry)}
+                                                                &nbsp;{formatDate(idCardCustomer.dateOfExpiry || 'Chưa có thông tin')}
                                                             </span>
                                                         </p>
                                                     </div>
                                                 ) : (
-                                                    <p className='text-center font-semibold text-lg mobile:text-base'>Chưa có thông tin khách hàng</p>
+                                                    <div>
+                                                        <p>
+                                                            Họ tên:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Giới tính:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Nơi sinh:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Quốc tịch:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Số Passport:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Ngày sinh:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Ngày cấp:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Ngày hết hạn:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                    </div>
                                                 )}
                                             </div>
                                         );
