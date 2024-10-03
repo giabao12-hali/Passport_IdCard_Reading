@@ -33,7 +33,7 @@ const IdCardRead = () => {
     // search state
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [customersPerPage] = useState(5);
+    const [customersPerPage] = useState(10);
 
     // image modal state
     const [selectedImage, setSelectedImage] = useState(null);
@@ -55,6 +55,42 @@ const IdCardRead = () => {
     }
 
     //#region API
+    useEffect(() => {
+        const fetchCustomers = async () => {
+            if (!bookingId) return;
+            try {
+                setLoading(true);
+                const response = await axios.get(`http://108.108.110.22:4105/api/Booking/GetBookingMember?BookingId=${bookingId}`);
+                const { memberInfors, totalGuest, bookingNo, tourCode } = response.data.response;
+
+                const customerData = memberInfors.map((member, index) => ({
+                    stt: index + 1,
+                    fullName: member.fullName,
+                    gender: member.gender === 1 ? 'Nam' : 'Nữ',
+                    personalKind: member.personalKind === 0 ? 'Người lớn' : 'Trẻ em',
+                    dateOfBirth: member.visaInfor?.dateOfBirth || 'N/A',
+                    issueDate: member.visaInfor?.issueDate || 'Chưa có thông tin',
+                    expireDate: member.visaInfor?.expireDate || 'Chưa có thông tin',
+                    documentNumber: member.visaInfor?.documentNumber || 'Chưa có thông tin',
+                    birthPlace: member.birthPlace || 'Chưa có thông tin',
+                    address: member.address || 'Chưa có thông tin',
+                    nationality: member.nationality || 'Chưa có thông tin',
+                }));
+
+                setCustomersEtour(customerData);
+                setTotalGuest(totalGuest);
+                setBookingNo(bookingNo);
+                setTourCode(tourCode);
+            } catch (err) {
+                setError('Đã xảy ra lỗi khi tải dữ liệu eTour.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchCustomers();
+    }, [bookingId]);
+
     useEffect(() => {
         const fetchIdCardData = async () => {
             if (fileArray.length === 0) return;
@@ -79,11 +115,12 @@ const IdCardRead = () => {
                 if (!extractedTexts || extractedTexts.length === 0) throw new Error('Không có chuỗi JSON nào được trích xuất từ ảnh.');
 
                 const data = JSON.stringify({ extractedTexts });
-                const response = await axios.post('http://108.108.110.113:8086/api/v1/get-o-array', data, {
-                    headers: {
-                        'Content-Type': 'text/plain',
-                    },
-                    maxBodyLength: Infinity,
+                const apiURL = fileArray.length === 1
+                    ? 'http://108.108.110.113:8086/api/v1/get-o-result'
+                    : 'http://108.108.110.113:8086/api/v1/get-o-array';
+
+                const response = await axios.post(apiURL, data, {
+                    headers: { 'Content-Type': 'text/plain' },
                 });
 
                 const idCardsData = fileArray.length === 1 ? [response.data] : response.data.passports;
@@ -91,7 +128,7 @@ const IdCardRead = () => {
                 setCustomersIdCard(idCardsData);
                 setTotalGuestIdCards(totalIdCard);
             } catch (error) {
-                setErrorIdCard('Đã xảy ra lỗi khi tải dữ liệu CCCD/CMND.');
+                setErrorIdCard('Đã xảy ra lỗi khi tải dữ liệu Passport.');
             } finally {
                 setLoadingIdCards(false);
             }
@@ -103,47 +140,10 @@ const IdCardRead = () => {
     }, [fileArray]);
 
     useEffect(() => {
-        const fetchCustomers = async () => {
-            if (!bookingId) return;
-            try {
-                setLoading(true);
-                const response = await axios.get(`http://108.108.110.22:4105/api/Booking/GetBookingMember?BookingId=${bookingId}`);
-                const { memberInfors, totalGuest, bookingNo, tourCode } = response.data.response;
-
-                const customerData = memberInfors.map((member, index) => ({
-                    stt: index + 1,
-                    fullName: member.fullName,
-                    gender: member.gender === 1 ? 'Nam' : 'Nữ',
-                    personalKind: member.personalKind === 0 ? 'Người lớn' : 'Trẻ em',
-                    dateOfBirth: member.idCardInfor?.dateOfBirth || 'N/A',
-                    issueDate: member.idCardInfor?.issueDate || 'Chưa có thông tin',
-                    expireDate: member.idCardInfor?.expireDate || 'Chưa có thông tin',
-                    documentNumber: member.idCardInfor?.documentNumber || 'Chưa có thông tin',
-                    birthPlace: member.birthPlace || 'Chưa có thông tin',
-                    address: member.address || 'Chưa có thông tin',
-                    nationality: member.nationality || 'Chưa có thông tin',
-                }));
-
-                setCustomersEtour(customerData);
-                setTotalGuest(totalGuest);
-                setBookingNo(bookingNo);
-                setTourCode(tourCode);
-            } catch (err) {
-                setError('Đã xảy ra lỗi khi tải dữ liệu eTour.');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchCustomers();
-    }, [bookingId]);
-
-    //#region merge customers
-    useEffect(() => {
         if (customersEtour.length > 0 || customersIdCard.length > 0) {
             const mergedData = customersEtour.map(etourCustomer => {
                 const matchedIdCardCustomer = customersIdCard.find(
-                    idCardCustomer => idCardCustomer.idCardNo === etourCustomer.documentNumber
+                    passportCustomer => passportCustomer.idCardNo === etourCustomer.documentNumber
                 );
                 return {
                     bookingCustomer: etourCustomer,
@@ -153,7 +153,6 @@ const IdCardRead = () => {
             setMergedCustomers(mergedData);
         }
     }, [customersEtour, customersIdCard]);
-    //#endregion
     //#endregion
 
     //#region Get save customer API
@@ -204,6 +203,12 @@ const IdCardRead = () => {
     }
     //#endregion
 
+    //#region handle check data
+    const cleanString = (str) => {
+        return str?.toLowerCase().replace(/[^a-z0-9]/g, '').trim() || '';
+    };
+    //#endregion
+
     //#region handle preview picture
     const handlePreviewPicture = (event) => {
         const files = event.target.files;
@@ -216,7 +221,6 @@ const IdCardRead = () => {
     //#endregion
 
     //#region handle format date
-    // format date state
     const isDateFormatted = (dateString) => {
         const regex = /^\d{2}\/\d{2}\/\d{4}$/;
         return regex.test(dateString);
@@ -264,6 +268,8 @@ const IdCardRead = () => {
     //#endregion
 
     const handleClose = () => {
+        localStorage.clear();
+        sessionStorage.clear();
         window.close();
     };
     //#endregion
@@ -280,8 +286,6 @@ const IdCardRead = () => {
     const filteredCustomersIdCard = customersIdCard.filter(customer =>
         customer.fullName.toLowerCase().includes(searchQuery.toLowerCase())
     );
-
-
     //#endregion
 
     //#region Pagination
@@ -390,10 +394,12 @@ const IdCardRead = () => {
             </div>
             <div className="w-full justify-center">
                 <div className="grid grid-cols-2 gap-4 mobile:flex mobile:flex-col">
+
+                    {/* Cột eTour */}
                     <div className="mobile:p-4">
                         <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách eTour</h3>
-                        <div className='flex justify-end mb-3'>
-                            <p className='text-lg mobile:text-base'>Tổng số khách trong eTour: <span className='font-semibold'>{totalGuest}</span></p>
+                        <div className="flex justify-end mb-3">
+                            <p className="text-lg mobile:text-base">Tổng số khách trong eTour: <span className="font-semibold">{totalGuest}</span></p>
                         </div>
                         {loading ? (
                             <div className="flex flex-col justify-center items-center mobile:flex-col">
@@ -405,9 +411,7 @@ const IdCardRead = () => {
                             </div>
                         ) : error ? (
                             <div className="flex justify-center items-center mobile:flex-col">
-                                <p className='font-semibold text-balance text-center'>
-                                    Đã có lỗi xảy ra ở phía hệ thống, vui lòng thử lại sau
-                                </p>
+                                <p className='font-semibold text-balance text-center'>Đã có lỗi xảy ra ở phía hệ thống, vui lòng thử lại sau</p>
                                 <Frown className='ml-2 w-6 mobile:mt-2' />
                             </div>
                         ) : (
@@ -422,15 +426,13 @@ const IdCardRead = () => {
                                                     <p>Giới tính: {currentCustomersEtours[index].gender}</p>
                                                     <p>Nơi sinh: {currentCustomersEtours[index].birthPlace}</p>
                                                     <p>Quốc tịch: {currentCustomersEtours[index].nationality}</p>
-                                                    <p>Số Passport: {currentCustomersEtours[index].documentNumber}</p>
+                                                    <p>Số CCCD/CMND: {currentCustomersEtours[index].documentNumber}</p>
                                                     <p>Ngày sinh: {formatDate(currentCustomersEtours[index].dateOfBirth)}</p>
                                                     <p>Ngày cấp: {formatDate(currentCustomersEtours[index].issueDate)}</p>
                                                     <p>Ngày hết hạn: {formatDate(currentCustomersEtours[index].expireDate)}</p>
                                                 </>
                                             ) : (
-                                                <>
-                                                    <p className='text-center font-semibold text-lg'>Chưa có thông tin khách hàng</p>
-                                                </>
+                                                <p className='text-center font-semibold text-lg'>Chưa có thông tin khách hàng</p>
                                             )}
                                         </div>
                                     ))
@@ -441,155 +443,101 @@ const IdCardRead = () => {
                                         </p>
                                         <UserRoundX className='ml-2 w-6 mobile:mt-2' />
                                     </div>
-                                )}</>
+                                )}
+                            </>
                         )}
                     </div>
 
+                    <div className='hidden mobile:divider mobile:px-4'></div>
+
                     <div className="mobile:p-4">
                         <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách CCCD/CMND</h3>
-                        <div className='flex justify-end mb-3 mobile:text-baSE'>
+                        <div className='flex justify-end mb-3 mobile:text-base'>
                             <p className='text-lg'>Tổng số khách nhập từ CCCD/CMND: <span className='font-semibold'>{totalGuestIdCards}</span></p>
                         </div>
                         {loadingIdCards ? (
-                            <div className="flex flex-col justify-center items-center h-screen">
-                                <div className="radial-progress" style={{ "--value": progress }} role="progressbar">
-                                    {progress}%
-                                </div>
-                                <p className='font-semibold flex justify-center items-center text-center mt-4'>
-                                    Đang tải dữ liệu khách hàng...
-                                    <Smile className='ml-2 w-6' />
-                                </p>
+                            <div className="flex flex-col justify-center items-center">
+                                <div className="radial-progress" style={{ "--value": progress }} role="progressbar">{progress}%</div>
+                                <p className='font-semibold flex justify-center items-center text-center mt-4'>Đang tải dữ liệu khách hàng...</p>
                             </div>
                         ) : errorIdCard ? (
                             <div className="flex justify-center items-center mobile:flex-col">
-                                <p className='font-semibold flex justify-center items-center text-center'>
-                                    Đã có lỗi xảy ra ở phía hệ thống, vui lòng thử lại sau
-                                </p>
+                                <p className='font-semibold flex justify-center items-center text-center'>Đã có lỗi xảy ra ở phía hệ thống, vui lòng thử lại sau</p>
                                 <Frown className='ml-2 w-6 mobile:mt-2' />
                             </div>
                         ) : (
                             <>
-                                <div>
-                                    {customersIdCard.length > 0 ? (
-                                        mergedCustomers.map((customerPair, index) => (
-                                            <div key={index} className='border mb-4 p-4 rounded-2xl'>
+                                {customersIdCard.length > 0 ? (
+                                    Array.from({ length: Math.max(currentCustomersEtours.length, customersIdCard.length) }).map((_, index) => {
+                                        const etourCustomer = currentCustomersEtours[index];
+                                        const idCardCustomer = customersIdCard[index];
+
+                                        return (
+                                            <div key={index} className="border mb-4 p-4 rounded-2xl">
                                                 <p><strong>Khách hàng {index + 1 + (currentPage - 1) * customersPerPage}</strong></p>
-                                                {customerPair.idCardCustomer ? (
+                                                {idCardCustomer ? (
                                                     <div>
                                                         <p>
                                                             Họ tên:
-                                                            <span className={customerPair.bookingCustomer?.fullName !== customerPair.idCardCustomer.fullName ? "text-red-600" : ""}>
-                                                                &nbsp;{customerPair.idCardCustomer.fullName}
+                                                            <span className={(etourCustomer && cleanString(etourCustomer.fullName) !== cleanString(idCardCustomer.fullName)) || !etourCustomer ? "text-red-600" : ""}>
+                                                                &nbsp;{idCardCustomer.fullName}
                                                             </span>
                                                         </p>
                                                         <p>
                                                             Giới tính:
-                                                            <span className={customerPair.bookingCustomer?.gender !== formatGender(customerPair.idCardCustomer.sex) ? "text-red-600" : ""}>
-                                                                &nbsp;{formatGender(customerPair.idCardCustomer.sex)}
+                                                            <span className={(etourCustomer && cleanString(etourCustomer.gender) !== cleanString(formatGender(idCardCustomer.sex))) || !etourCustomer ? "text-red-600" : ""}>
+                                                                &nbsp;{formatGender(idCardCustomer.sex)}
                                                             </span>
                                                         </p>
                                                         <p>
                                                             Nơi sinh:
-                                                            <span className={customerPair.bookingCustomer?.birthPlace !== customerPair.idCardCustomer.placeOfBirth ? "text-red-600" : ""}>
-                                                                &nbsp;{customerPair.idCardCustomer.placeOfBirth || 'Chưa có thông tin'}
+                                                            <span className={(etourCustomer && cleanString(etourCustomer.birthPlace) !== cleanString(idCardCustomer.placeOfBirth)) || !etourCustomer ? "text-red-600" : ""}>
+                                                                &nbsp;{idCardCustomer.placeOfBirth || 'Chưa có thông tin'}
                                                             </span>
                                                         </p>
                                                         <p>
                                                             Quốc tịch:
-                                                            <span className={customerPair.bookingCustomer?.nationality !== customerPair.idCardCustomer.nationality ? "text-red-600" : ""}>
-                                                                &nbsp;{customerPair.idCardCustomer.nationality || 'Chưa có thông tin'}
+                                                            <span className={(etourCustomer && cleanString(etourCustomer.nationality) !== cleanString(idCardCustomer.nationality)) || !etourCustomer ? "text-red-600" : ""}>
+                                                                &nbsp;{idCardCustomer.nationality || 'Chưa có thông tin'}
                                                             </span>
                                                         </p>
-                                                        <p className='font-bold'>Thông tin CCCD/CMND:</p>
                                                         <p>
                                                             Số CCCD/CMND:
-                                                            <span className={customerPair.bookingCustomer?.documentNumber !== customerPair.idCardCustomer.idCardNo ? "text-red-600" : ""}>
-                                                                &nbsp;{customerPair.idCardCustomer.idCardNo}
+                                                            <span className={(etourCustomer && etourCustomer.documentNumber !== idCardCustomer.idCardNo) || !etourCustomer ? "text-red-600" : ""}>
+                                                                &nbsp;{idCardCustomer.idCardNo}
                                                             </span>
                                                         </p>
                                                         <p>
                                                             Ngày sinh:
-                                                            <span className={customerPair.bookingCustomer?.dateOfBirth !== customerPair.idCardCustomer.dateOfBirth ? "text-red-600" : ""}>
-                                                                &nbsp;{formatDate(customerPair.idCardCustomer.dateOfBirth)}
+                                                            <span className={(etourCustomer && formatDate(etourCustomer.dateOfBirth) !== formatDate(idCardCustomer.dateOfBirth)) || !etourCustomer ? "text-red-600" : ""}>
+                                                                &nbsp;{formatDate(idCardCustomer.dateOfBirth)}
                                                             </span>
                                                         </p>
                                                         <p>
                                                             Ngày cấp:
-                                                            <span className={customerPair.bookingCustomer?.issueDate !== customerPair.idCardCustomer.dateOfIssue ? "text-red-600" : ""}>
-                                                                &nbsp;{formatDate(customerPair.idCardCustomer.dateOfIssue)}
+                                                            <span className={(etourCustomer && formatDate(etourCustomer.issueDate) !== formatDate(idCardCustomer.dateOfIssue)) || !etourCustomer ? "text-red-600" : ""}>
+                                                                &nbsp;{formatDate(idCardCustomer.dateOfIssue)}
                                                             </span>
                                                         </p>
                                                         <p>
                                                             Ngày hết hạn:
-                                                            <span className={customerPair.bookingCustomer?.expireDate !== customerPair.idCardCustomer.dateOfExpiry ? "text-red-600" : ""}>
-                                                                &nbsp;{formatDate(customerPair.idCardCustomer.dateOfExpiry)}
+                                                            <span className={(etourCustomer && formatDate(etourCustomer.expireDate) !== formatDate(idCardCustomer.dateOfExpiry)) || !etourCustomer ? "text-red-600" : ""}>
+                                                                &nbsp;{formatDate(idCardCustomer.dateOfExpiry)}
                                                             </span>
                                                         </p>
                                                     </div>
                                                 ) : (
-                                                    <div>
-                                                        <p>
-                                                            Họ tên:
-                                                            <span>
-                                                                &nbsp;Chưa có thông tin
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Giới tính:
-                                                            <span>
-                                                                &nbsp;Chưa có thông tin
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Nơi sinh:
-                                                            <span>
-                                                                &nbsp;Chưa có thông tin
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Quốc tịch:
-                                                            <span>
-                                                                &nbsp;Chưa có thông tin
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Số Passport:
-                                                            <span>
-                                                                &nbsp;Chưa có thông tin
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Ngày sinh:
-                                                            <span>
-                                                                &nbsp;Chưa có thông tin
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Ngày cấp:
-                                                            <span>
-                                                                &nbsp;Chưa có thông tin
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Ngày hết hạn:
-                                                            <span>
-                                                                &nbsp;Chưa có thông tin
-                                                            </span>
-                                                        </p>
-                                                    </div>
+                                                    <p className='text-center font-semibold text-lg mobile:text-base'>Chưa có thông tin khách hàng</p>
                                                 )}
                                             </div>
-                                        ))
-                                    ) : (
-                                        <div className="flex justify-center items-center mobile:flex-col py-4">
-                                            <p className='font-semibold text-balance text-center'>
-                                                Không tìm thấy khách hàng nào từ CCCD/CMND
-                                            </p>
-                                            <UserRoundX className='ml-2 w-6 mobile:mt-2' />
-                                        </div>
-
-                                    )}
-                                </div>
+                                        );
+                                    })
+                                ) : (
+                                    <div className="flex justify-center items-center mobile:flex-col py-4">
+                                        <p className='font-semibold text-balance text-center'>Không tìm thấy khách hàng nào từ CCCD/CMND</p>
+                                        <UserRoundX className='ml-2 w-6 mobile:mt-2' />
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>
