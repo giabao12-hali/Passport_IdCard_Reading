@@ -37,7 +37,7 @@ const PassportRead = () => {
     // search state
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [customersPerPage] = useState(5);
+    const [customersPerPage] = useState(10);
 
     // image modal state
     const [selectedImage, setSelectedImage] = useState(null);
@@ -328,8 +328,6 @@ const PassportRead = () => {
         sessionStorage.clear();
         window.close();
     };
-    //#endregion
-
 
     //#region Searching
     const handleSearchChange = (e) => {
@@ -344,7 +342,8 @@ const PassportRead = () => {
         customer.fullName.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-
+    //#region Combine Customers
+    const combinedCustomers = [...filteredCustomersEtour, ...filteredCustomersPassport];
     //#endregion
 
     //#region Pagination
@@ -367,9 +366,7 @@ const PassportRead = () => {
 
     return (
         <div className='w-full min-h-screen p-4 mobile:p-0 tablet:p-0'>
-            <div className='w-full flex justify-end py-4 px-4'>
-                <button className='btn btn-info no-animation mobile:h-auto mobile:text-balance' onClick={handleButtonClickRoute}>Đọc CCCD/CMND</button>
-            </div>
+
             <div className="navbar bg-base-100 mobile:flex-col mobile:gap-4">
                 <div className="flex-1 gap-8 items-center">
                     <p className="text-xl font-semibold mobile:text-sm mobile:text-left">Code Tour:</p>
@@ -390,7 +387,10 @@ const PassportRead = () => {
                     />
                 </div>
             </div>
-            <div className='flex justify-end items-center w-full'>
+            <div className='flex justify-between items-center w-full mobile:flex mobile:flex-col'>
+                <div className='mobile:pt-4'>
+                    <button className='btn btn-info no-animation mobile:h-auto mobile:text-balance' onClick={handleButtonClickRoute}>Đọc CCCD/CMND</button>
+                </div>
                 <div className='handle-pictures flex gap-4 my-4 pb-4 items-center mobile:flex-col'>
                     <p className='font-normal text-xl text-balance flex-1 mobile:text-center mobile:text-base'>Đính kèm ảnh Passport</p>
                     <input type="file" accept='image/*' multiple onChange={handlePreviewPicture} className="file-input file-input-bordered file-input-accent max-w-xs w-full flex-none" />
@@ -460,7 +460,7 @@ const PassportRead = () => {
                             <p className='text-lg mobile:text-base'>Tổng số khách trong eTour: <span className='font-semibold'>{totalGuest}</span></p>
                         </div>
                         {loading ? (
-                            <div className="flex flex-col justify-center items-center mobile:flex-col">
+                            <div className="flex flex-col justify-center items-center h-screen mobile:flex-col">
                                 <span className="loading loading-infinity w-28"></span>
                                 <p className='font-semibold flex justify-center items-center text-center'>
                                     Đang tải dữ liệu khách hàng...
@@ -484,11 +484,8 @@ const PassportRead = () => {
                                                 <>
                                                     <p>Họ tên: {currentCustomersEtours[index].fullName}</p>
                                                     <p>Giới tính: {currentCustomersEtours[index].gender}</p>
-                                                    <p>Loại: {currentCustomersEtours[index].personalKind}</p>
                                                     <p>Nơi sinh: {currentCustomersEtours[index].birthPlace}</p>
-                                                    <p>Địa chỉ: {currentCustomersEtours[index].address}</p>
                                                     <p>Quốc tịch: {currentCustomersEtours[index].nationality}</p>
-                                                    <p className='font-bold'>Thông tin Passport:</p>
                                                     <p>Số Passport: {currentCustomersEtours[index].documentNumber}</p>
                                                     <p>Ngày sinh: {formatDate(currentCustomersEtours[index].dateOfBirth)}</p>
                                                     <p>Ngày cấp: {formatDate(currentCustomersEtours[index].issueDate)}</p>
@@ -556,21 +553,9 @@ const PassportRead = () => {
                                                             </span>
                                                         </p>
                                                         <p>
-                                                            Loại:
-                                                            <span className={customerPair.bookingCustomer?.personalKind !== customerPair.passportCustomer.personalKind ? "text-red-600" : ""}>
-                                                                &nbsp;{customerPair.passportCustomer.personalKind || 'Chưa có thông tin'}
-                                                            </span>
-                                                        </p>
-                                                        <p>
                                                             Nơi sinh:
                                                             <span className={customerPair.bookingCustomer?.birthPlace !== customerPair.passportCustomer.placeOfBirth ? "text-red-600" : ""}>
                                                                 &nbsp;{customerPair.passportCustomer.placeOfBirth || 'Chưa có thông tin'}
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Địa chỉ:
-                                                            <span className={customerPair.bookingCustomer?.address !== customerPair.passportCustomer.address ? "text-red-600" : ""}>
-                                                                &nbsp;{customerPair.passportCustomer.address || 'Chưa có thông tin'}
                                                             </span>
                                                         </p>
                                                         <p>
@@ -579,7 +564,6 @@ const PassportRead = () => {
                                                                 &nbsp;{customerPair.passportCustomer.nationality || 'Chưa có thông tin'}
                                                             </span>
                                                         </p>
-                                                        <p className='font-bold'>Thông tin Passport:</p>
                                                         <p>
                                                             Số Passport:
                                                             <span className={customerPair.bookingCustomer?.documentNumber !== customerPair.passportCustomer.passportNo ? "text-red-600" : ""}>
@@ -606,7 +590,56 @@ const PassportRead = () => {
                                                         </p>
                                                     </div>
                                                 ) : (
-                                                    <p className='text-center font-semibold text-lg mobile:text-base'>Chưa có thông tin khách hàng</p>
+                                                    <div>
+                                                        <p>
+                                                            Họ tên:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Giới tính:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Nơi sinh:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Quốc tịch:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Số Passport:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Ngày sinh:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Ngày cấp:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Ngày hết hạn:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                    </div>
                                                 )}
                                             </div>
                                         ))

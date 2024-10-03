@@ -138,6 +138,7 @@ const IdCardRead = () => {
         fetchCustomers();
     }, [bookingId]);
 
+    //#region merge customers
     useEffect(() => {
         if (customersEtour.length > 0 || customersIdCard.length > 0) {
             const mergedData = customersEtour.map(etourCustomer => {
@@ -152,6 +153,7 @@ const IdCardRead = () => {
             setMergedCustomers(mergedData);
         }
     }, [customersEtour, customersIdCard]);
+    //#endregion
     //#endregion
 
     //#region Get save customer API
@@ -200,51 +202,6 @@ const IdCardRead = () => {
             }, 3000);
         }
     }
-    //#endregion
-
-    //#region Get booking API
-    useEffect(() => {
-        const fetchCustomers = async () => {
-            if (!bookingId) return;
-            try {
-                const response = await axios.get(`http://108.108.110.22:4105/api/Booking/GetBookingMember?BookingId=${bookingId}`, {
-                    headers: { 'accept': '*/*' }
-                });
-
-                const { memberInfors, totalGuest, bookingNo, tourCode } = response.data.response;
-
-                setTotalGuest(totalGuest);
-                setBookingNo(bookingNo);
-                setTourCode(tourCode);
-
-                const customerData = memberInfors.map((member, index) => ({
-                    stt: index + 1,
-                    fullName: member.fullName,
-                    gender: member.gender === 1 ? 'Nam' : 'Nữ',
-                    personalKind: member.personalKind === 0 ? 'Người lớn' : 'Trẻ em',
-                    dateOfBirth: member.idCardInfor?.dateOfBirth || 'N/A',
-                    issueDate: member.idCardInfor?.issueDate || 'Chưa có thông tin',
-                    expireDate: member.idCardInfor?.expireDate || 'Chưa có thông tin',
-                    documentNumber: member.idCardInfor?.documentNumber || 'Chưa có thông tin',
-                    birthPlace: member.birthPlace || 'Chưa có thông tin',
-                    address: member.address || 'Chưa có thông tin',
-                    nationality: member.nationality || 'Chưa có thông tin'
-                }));
-
-                setCustomersEtour(customerData);
-                setTotalGuest(response.data.response.totalGuest);
-                setLoading(false);
-            } catch (err) {
-                console.error("API Error:", err);
-                setError(err);
-                setLoading(false);
-            }
-        };
-
-        fetchCustomers();
-    }, [bookingId]);
-
-
     //#endregion
 
     //#region handle preview picture
@@ -346,9 +303,7 @@ const IdCardRead = () => {
     //#endregion
     return (
         <div className='w-full min-h-screen p-4 mobile:p-0 tablet:p-0'>
-            <div className='w-full flex justify-end py-4 px-4'>
-                <button className='btn btn-info no-animation mobile:h-auto mobile:text-balance' onClick={handleButtonClickRoute}>Đọc Passport</button>
-            </div>
+
             <div className="navbar bg-base-100 mobile:flex-col mobile:gap-4">
                 <div className="flex-1 gap-8 items-center">
                     <p className="text-xl font-semibold mobile:text-sm mobile:text-left">Code Tour:</p>
@@ -369,7 +324,10 @@ const IdCardRead = () => {
                     />
                 </div>
             </div>
-            <div className='flex justify-end items-center w-full mobile:justify-center'>
+            <div className='flex justify-between items-center w-full mobile:flex mobile:flex-col'>
+                <div className='mobile:pt-4'>
+                    <button className='btn btn-info no-animation mobile:h-auto mobile:text-balance' onClick={handleButtonClickRoute}>Đọc Passport</button>
+                </div>
                 <div className='handle-pictures flex gap-4 my-4 pb-4 items-center mobile:flex-col'>
                     <p className='font-normal text-xl text-balance flex-1 mobile:text-center mobile:text-base'>Đính kèm ảnh CCCD/CMND</p>
                     <input type="file" accept='image/*' multiple onChange={handlePreviewPicture} className="file-input file-input-bordered file-input-accent max-w-xs w-full flex-none" />
@@ -462,12 +420,9 @@ const IdCardRead = () => {
                                                 <>
                                                     <p>Họ tên: {currentCustomersEtours[index].fullName}</p>
                                                     <p>Giới tính: {currentCustomersEtours[index].gender}</p>
-                                                    <p>Loại: {currentCustomersEtours[index].personalKind}</p>
                                                     <p>Nơi sinh: {currentCustomersEtours[index].birthPlace}</p>
-                                                    <p>Địa chỉ: {currentCustomersEtours[index].address}</p>
                                                     <p>Quốc tịch: {currentCustomersEtours[index].nationality}</p>
-                                                    <p className='font-bold'>Thông tin CCCD/CMND:</p>
-                                                    <p>Số CCCD/CMND: {currentCustomersEtours[index].documentNumber}</p>
+                                                    <p>Số Passport: {currentCustomersEtours[index].documentNumber}</p>
                                                     <p>Ngày sinh: {formatDate(currentCustomersEtours[index].dateOfBirth)}</p>
                                                     <p>Ngày cấp: {formatDate(currentCustomersEtours[index].issueDate)}</p>
                                                     <p>Ngày hết hạn: {formatDate(currentCustomersEtours[index].expireDate)}</p>
@@ -534,21 +489,9 @@ const IdCardRead = () => {
                                                             </span>
                                                         </p>
                                                         <p>
-                                                            Loại:
-                                                            <span className={customerPair.bookingCustomer?.personalKind !== customerPair.idCardCustomer.personalKind ? "text-red-600" : ""}>
-                                                                &nbsp;{customerPair.idCardCustomer.personalKind || 'Chưa có thông tin'}
-                                                            </span>
-                                                        </p>
-                                                        <p>
                                                             Nơi sinh:
                                                             <span className={customerPair.bookingCustomer?.birthPlace !== customerPair.idCardCustomer.placeOfBirth ? "text-red-600" : ""}>
                                                                 &nbsp;{customerPair.idCardCustomer.placeOfBirth || 'Chưa có thông tin'}
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Địa chỉ:
-                                                            <span className={customerPair.bookingCustomer?.address !== customerPair.idCardCustomer.address ? "text-red-600" : ""}>
-                                                                &nbsp;{customerPair.idCardCustomer.address || 'Chưa có thông tin'}
                                                             </span>
                                                         </p>
                                                         <p>
@@ -584,7 +527,56 @@ const IdCardRead = () => {
                                                         </p>
                                                     </div>
                                                 ) : (
-                                                    <p className='text-center font-semibold text-lg mobile:text-base'>Chưa có thông tin khách hàng</p>
+                                                    <div>
+                                                        <p>
+                                                            Họ tên:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Giới tính:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Nơi sinh:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Quốc tịch:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Số Passport:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Ngày sinh:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Ngày cấp:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Ngày hết hạn:
+                                                            <span>
+                                                                &nbsp;Chưa có thông tin
+                                                            </span>
+                                                        </p>
+                                                    </div>
                                                 )}
                                             </div>
                                         ))
