@@ -2,8 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Frown, Smile, UserRoundX } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const PassportRead = () => {
     // customer state
@@ -11,8 +10,16 @@ const PassportRead = () => {
     const [customersPassport, setCustomersPassport] = useState([]);
     const [totalGuest, setTotalGuest] = useState(0);
     const [totalGuestPassports, setTotalGuestPassports] = useState(0);
+
+    const [mergedCustomers, setMergedCustomers] = useState([]);
+
     const [bookingNo, setBookingNo] = useState("");
     const [tourCode, setTourCode] = useState("");
+    const [tourNote] = useState("");
+    const [adultNumber] = useState(0);
+    const [childNumber] = useState(0);
+    const [smallchildNumber] = useState(0);
+    const [infantNumber] = useState(0);
 
     // query params state
     const location = useLocation();
@@ -30,7 +37,7 @@ const PassportRead = () => {
     // search state
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [customersPerPage] = useState(10);
+    const [customersPerPage] = useState(5);
 
     // image modal state
     const [selectedImage, setSelectedImage] = useState(null);
@@ -51,79 +58,107 @@ const PassportRead = () => {
         navigate(`/idcard-read?bookingId=${bookingId}`);
     }
 
-    //#region G API upload & extract text
+
+    //#region API
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchCustomers = async () => {
+            if (!bookingId) return;
+            try {
+                setLoading(true);
+                const response = await axios.get(`http://108.108.110.22:4105/api/Booking/GetBookingMember?BookingId=${bookingId}`);
+                const { memberInfors, totalGuest, bookingNo, tourCode } = response.data.response;
+
+                const customerData = memberInfors.map((member, index) => ({
+                    stt: index + 1,
+                    fullName: member.fullName,
+                    gender: member.gender === 1 ? 'Nam' : 'Nữ',
+                    personalKind: member.personalKind === 0 ? 'Người lớn' : 'Trẻ em',
+                    dateOfBirth: member.visaInfor?.dateOfBirth || 'N/A',
+                    issueDate: member.visaInfor?.issueDate || 'Chưa có thông tin',
+                    expireDate: member.visaInfor?.expireDate || 'Chưa có thông tin',
+                    documentNumber: member.visaInfor?.documentNumber || 'Chưa có thông tin',
+                    birthPlace: member.birthPlace || 'Chưa có thông tin',
+                    address: member.address || 'Chưa có thông tin',
+                    nationality: member.nationality || 'Chưa có thông tin',
+                }));
+
+                setCustomersEtour(customerData);
+                setTotalGuest(totalGuest);
+                setBookingNo(bookingNo);
+                setTourCode(tourCode);
+            } catch (err) {
+                setError('Đã xảy ra lỗi khi tải dữ liệu eTour.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchCustomers();
+    }, [bookingId]);
+
+    useEffect(() => {
+        const fetchPassportData = async () => {
             if (fileArray.length === 0) return;
+
             try {
                 setLoadingPassports(true);
-                setProgress(0);
-                let extractedTexts = [];
-
                 const formData = new FormData();
                 fileArray.forEach(file => {
                     formData.append('imageFile', file);
                 });
 
                 const uploadResponse = await axios.post('http://108.108.110.73:1212/api/Vision/upload', formData, {
-                    headers: {
-                        'Content-Type': 'multipart/form-data',
-                    },
+                    headers: { 'Content-Type': 'multipart/form-data' },
+
                     onUploadProgress: (progressEvent) => {
                         const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
                         setProgress(percentCompleted);
                     }
                 });
 
-                extractedTexts = uploadResponse.data.extractedTexts;
-                if (!extractedTexts || extractedTexts.length === 0) {
-                    throw new Error('Không có chuỗi JSON nào được trích xuất từ ảnh.');
-                }
+                const extractedTexts = uploadResponse.data.extractedTexts;
+                if (!extractedTexts || extractedTexts.length === 0) throw new Error('Không có chuỗi JSON nào được trích xuất từ ảnh.');
 
-                const data = JSON.stringify({
-                    extractedTexts: extractedTexts
+                const data = JSON.stringify({ extractedTexts });
+                const apiURL = fileArray.length === 1
+                    ? 'http://108.108.110.113:8086/api/v1/get-o-result'
+                    : 'http://108.108.110.113:8086/api/v1/get-o-array';
+
+                const response = await axios.post(apiURL, data, {
+                    headers: { 'Content-Type': 'text/plain' },
                 });
 
-                let response;
-
-                if (fileArray.length === 1) {
-                    response = await axios.post('http://108.108.110.113:8086/api/v1/get-o-result', data, {
-                        headers: {
-                            'Content-Type': 'text/plain',
-                            'Cookie': 'JSESSIONID=95A3E15EC1D964A12A672A4A2F2D8801; JSESSIONID=FE65C7DFA996767C561FDC457A367B23; JSESSIONID=B9BCB40B718484CB236D30730D1CDD1C'
-                        },
-                        maxBodyLength: Infinity,
-                    });
-
-                }
-                else {
-                    response = await axios.post('http://108.108.110.113:8086/api/v1/get-o-array', data, {
-                        headers: {
-                            'Content-Type': 'text/plain',
-                            'Cookie': 'JSESSIONID=95A3E15EC1D964A12A672A4A2F2D8801; JSESSIONID=FE65C7DFA996767C561FDC457A367B23; JSESSIONID=B9BCB40B718484CB236D30730D1CDD1C'
-                        },
-                        maxBodyLength: Infinity,
-                    });
-                }
-
-                console.log('API response data:', response.data);
-
-                setCustomersPassport(fileArray.length === 1 ? [response.data] : response.data.passports);
-                setTotalGuestPassports(fileArray.length === 1 ? 1 : response.data.passports.length);
+                const passportsData = fileArray.length === 1 ? [response.data] : response.data.passports;
+                const totalPassport = fileArray.length === 1 ? 1 : response.data.passports.length;
+                setCustomersPassport(passportsData);
+                setTotalGuestPassports(totalPassport);
             } catch (error) {
-                setErrorPassport(error.message);
-                console.error(error.message);
+                setErrorPassport('Đã xảy ra lỗi khi tải dữ liệu Passport.');
             } finally {
                 setLoadingPassports(false);
             }
         };
 
         if (fileArray.length > 0) {
-            fetchData();
+            fetchPassportData();
         }
     }, [fileArray]);
 
-
+    useEffect(() => {
+        if (customersEtour.length > 0 || customersPassport.length > 0) {
+            const mergedData = customersEtour.map(etourCustomer => {
+                const matchedPassportCustomer = customersPassport.find(
+                    passportCustomer => passportCustomer.passportNo === etourCustomer.documentNumber
+                );
+                return {
+                    bookingCustomer: etourCustomer,
+                    passportCustomer: matchedPassportCustomer || null,
+                };
+            });
+            setMergedCustomers(mergedData);
+        }
+    }, [customersEtour, customersPassport]);
+    //#endregion
 
     //#region Get save customer API
     const handleSave = async () => {
@@ -173,49 +208,61 @@ const PassportRead = () => {
     }
     //#endregion
 
-    //#region Get booking API
-    useEffect(() => {
-        const fetchCustomers = async () => {
-            if (!bookingId) return;
-            try {
-                const response = await axios.get(`http://108.108.110.22:4105/api/Booking/GetBookingMember?BookingId=${bookingId}`, {
-                    headers: { 'accept': '*/*' }
-                });
+    //#region Handle save data eTour
+    const handeSaveEtour = async () => {
+        if (customersPassport.length === 0 || !bookingId) {
+            console.error('Dữ liệu không đầy đủ để lưu.');
+            return;
+        }
 
-                const { memberInfors, totalGuest, bookingNo, tourCode } = response.data.response;
+        const updatedMemberInfors = customersPassport.map(passport => ({
+            fullName: passport.fullName,
+            nationality: passport.nationality,
+            birthPlace: passport.placeOfBirth,
+            address: passport.placeOfBirth,
+            visaInfor: {
+                dateOfBirth: passport.dateOfBirth,
+                issueDate: passport.dateOfIssue,
+                expireDate: passport.dateOfExpiry,
+                documentNumber: passport.passportNo,
+            },
+            idCardInfor: {
+                dateOfBirth: passport.dateOfBirth,
+                issueDate: passport.dateOfIssue,
+                expireDate: passport.dateOfExpiry,
+                documentNumber: passport.idCardNo,
+            },
 
-                setTotalGuest(totalGuest);
-                setBookingNo(bookingNo);
-                setTourCode(tourCode);
+        }));
 
-                const customerData = memberInfors.map((member, index) => ({
-                    stt: index + 1,
-                    fullName: member.fullName,
-                    gender: member.gender === 1 ? 'Nam' : 'Nữ',
-                    personalKind: member.personalKind === 0 ? 'Người lớn' : 'Trẻ em',
-                    dateOfBirth: member.visaInfor?.dateOfBirth || 'N/A',
-                    issueDate: member.visaInfor?.issueDate,
-                    expireDate: member.visaInfor?.expireDate,
-                    documentNumber: member.visaInfor?.documentNumber,
-                    birthPlace: member.birthPlace || 'N/A',
-                    address: member.address || 'N/A',
-                    nationality: member.nationality
-                }));
-
-                setCustomersEtour(customerData);
-                setTotalGuest(response.data.response.totalGuest);
-                setLoading(false);
-            } catch (err) {
-                console.error("API Error:", err);
-                setError(err);
-                setLoading(false);
-            }
+        const payload = {
+            tourCode,
+            bookingId,
+            bookingNo,
+            memberInfors: updatedMemberInfors,
+            tourNote,
+            adultNumber,
+            childNumber,
+            smallchildNumber,
+            infantNumber,
+            totalGuest,
         };
 
-        fetchCustomers();
-    }, [bookingId]);
+        try {
+            const response = await axios.post('https://jsonplaceholder.typicode.com/posts', payload, {
+                headers: { 'Content-Type': 'application/json' }
+            });
+            console.log('Cập nhật thành công:', response.data);
+        } catch (error) {
+            console.error('Lỗi khi cập nhật eTour:', error);
+        }
+    };
+    //#endregion
 
-
+    //#region handle check data
+    const cleanString = (str) => {
+        return str?.toLowerCase().replace(/[^a-z0-9]/g, '').trim() || '';
+    };
     //#endregion
 
     //#region handle preview picture
@@ -230,7 +277,6 @@ const PassportRead = () => {
     //#endregion
 
     //#region handle format date
-    // format date state
     const isDateFormatted = (dateString) => {
         const regex = /^\d{2}\/\d{2}\/\d{4}$/;
         return regex.test(dateString);
@@ -321,6 +367,9 @@ const PassportRead = () => {
 
     return (
         <div className='w-full min-h-screen p-4 mobile:p-0 tablet:p-0'>
+            <div className='w-full flex justify-end py-4 px-4'>
+                <button className='btn btn-info no-animation mobile:h-auto mobile:text-balance' onClick={handleButtonClickRoute}>Đọc CCCD/CMND</button>
+            </div>
             <div className="navbar bg-base-100 mobile:flex-col mobile:gap-4">
                 <div className="flex-1 gap-8 items-center">
                     <p className="text-xl font-semibold mobile:text-sm mobile:text-left">Code Tour:</p>
@@ -405,7 +454,7 @@ const PassportRead = () => {
             </div>
             <div className="w-full justify-center">
                 <div className="grid grid-cols-2 gap-4 mobile:flex mobile:flex-col">
-                    <div className='mobile:p-4'>
+                    <div className="mobile:p-4">
                         <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách eTour</h3>
                         <div className='flex justify-end mb-3'>
                             <p className='text-lg mobile:text-base'>Tổng số khách trong eTour: <span className='font-semibold'>{totalGuest}</span></p>
@@ -453,19 +502,20 @@ const PassportRead = () => {
                                         </div>
                                     ))
                                 ) : (
-                                    <div className='flex mt-12 justify-center items-center'>
-                                        <p className='font-semibold text-lg mr-2'>
+                                    <div className="flex justify-center items-center mobile:flex-col py-4">
+                                        <p className='font-semibold text-balance text-center'>
                                             Không tìm thấy khách hàng nào từ eTour
                                         </p>
-                                        <UserRoundX className='-translate-y-0.5' />
+                                        <UserRoundX className='ml-2 w-6 mobile:mt-2' />
                                     </div>
                                 )}</>
                         )}
                     </div>
-                    <div className='mobile:p-4'>
+                    <div className='hidden mobile:divider mobile:px-4'></div>
+                    <div className="mobile:p-4">
                         <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách Passport</h3>
                         <div className='flex justify-end mb-3 mobile:text-baSE'>
-                            <p className='text-lg'>Tổng số khách Passport: <span className='font-semibold'>{totalGuestPassports}</span></p>
+                            <p className='text-lg'>Tổng số khách nhập từ Passport: <span className='font-semibold'>{totalGuestPassports}</span></p>
                         </div>
                         {loadingPassports ? (
                             <div className="flex flex-col justify-center items-center h-screen">
@@ -486,87 +536,90 @@ const PassportRead = () => {
                             </div>
                         ) : (
                             <>
-                                {Math.max(currentCustomersEtours.length, currentCustomersPassports.length) > 0 ? (
-                                    Array.from({ length: Math.max(currentCustomersEtours.length, currentCustomersPassports.length) }).map((_, index) => (
-                                        <div key={index} className="border mb-4 p-4 rounded-2xl">
-                                            <p><strong>Khách hàng {index + 1 + (currentPage - 1) * customersPerPage}</strong></p>
-                                            {currentCustomersPassports[index] ? (
-                                                <>
-                                                    <p>
-                                                        Họ tên:
-                                                        <span className={currentCustomersEtours[index]?.fullName === currentCustomersPassports[index].fullName ? "" : "text-red-600"}>
-                                                            &nbsp;{currentCustomersPassports[index].fullName}
-                                                        </span>
-                                                    </p>
-                                                    <p>
-                                                        Giới tính:
-                                                        <span className={currentCustomersEtours[index]?.gender === formatGender(currentCustomersPassports[index].sex) ? "" : "text-red-600"}>
-                                                            &nbsp;{formatGender(currentCustomersPassports[index].sex)}
-                                                        </span>
-                                                    </p>
-                                                    <p>
-                                                        Loại:
-                                                        <span className={currentCustomersEtours[index]?.personalKind === currentCustomersPassports[index].personalKind ? "" : "text-red-600"}>
-                                                            &nbsp;{currentCustomersPassports[index].personalKind || 'Chưa có thông tin'}
-                                                        </span>
-                                                    </p>
-                                                    <p>
-                                                        Nơi sinh:
-                                                        <span className={currentCustomersEtours[index]?.birthPlace === currentCustomersPassports[index].placeOfBirth ? "" : "text-red-600"}>
-                                                            &nbsp;{currentCustomersPassports[index].nationality || 'Chưa có thông tin'}
-                                                        </span>
-                                                    </p>
-                                                    <p>
-                                                        Địa chỉ:
-                                                        <span className={currentCustomersEtours[index]?.address === currentCustomersPassports[index].placeOfBirth ? "" : "text-red-600"}>
-                                                            &nbsp;{currentCustomersPassports[index].placeOfBirth || 'Chưa có thông tin'}
-                                                        </span>
-                                                    </p>
-                                                    <p>
-                                                        Quốc tịch:
-                                                        <span className={currentCustomersEtours[index]?.nationality === currentCustomersPassports[index].nationality ? "" : "text-red-600"}>
-                                                            &nbsp;{currentCustomersPassports[index].nationality || 'Chưa có thông tin'}
-                                                        </span>
-                                                    </p>
-                                                    <p className='font-bold'>Thông tin Passport:</p>
-                                                    <p>
-                                                        Số Passport:
-                                                        <span className={currentCustomersEtours[index]?.documentNumber === currentCustomersPassports[index].passportNo ? "" : "text-red-600"}>
-                                                            &nbsp;{currentCustomersPassports[index].passportNo || 'Chưa có thông tin'}
-                                                        </span>
-                                                    </p>
-                                                    <p>
-                                                        Ngày sinh:
-                                                        <span className={currentCustomersEtours[index]?.dateOfBirth === currentCustomersPassports[index].dateOfBirth ? "" : "text-red-600"}>
-                                                            &nbsp;{formatDate(currentCustomersPassports[index].dateOfBirth) || 'Chưa có thông tin'}
-                                                        </span>
-                                                    </p>
-                                                    <p>
-                                                        Ngày cấp:
-                                                        <span className={currentCustomersEtours[index]?.issueDate === currentCustomersPassports[index].dateOfIssue ? "" : "text-red-600"}>
-                                                            &nbsp;{formatDate(currentCustomersPassports[index].dateOfIssue) || 'Chưa có thông tin'}
-                                                        </span>
-                                                    </p>
-                                                    <p>
-                                                        Ngày hết hạn:
-                                                        <span className={currentCustomersEtours[index]?.expireDate === currentCustomersPassports[index].dateOfExpiry ? "" : "text-red-600"}>
-                                                            &nbsp;{formatDate(currentCustomersPassports[index].dateOfExpiry) || 'Chưa có thông tin'}
-                                                        </span>
-                                                    </p>
-                                                </>
-                                            ) : (
-                                                <p className='text-center font-semibold text-lg mobile:text-base'>Chưa có thông tin khách hàng</p>
-                                            )}
+                                <div>
+                                    {customersPassport.length > 0 ? (
+                                        mergedCustomers.map((customerPair, index) => (
+                                            <div key={index} className='border mb-4 p-4 rounded-2xl'>
+                                                <p><strong>Khách hàng {index + 1 + (currentPage - 1) * customersPerPage}</strong></p>
+                                                {customerPair.passportCustomer ? (
+                                                    <div>
+                                                        <p>
+                                                            Họ tên:
+                                                            <span className={cleanString(customerPair.bookingCustomer?.fullName) !== cleanString(customerPair.passportCustomer.fullName) ? "text-red-600" : ""}>
+                                                                &nbsp;{customerPair.passportCustomer.fullName}
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Giới tính:
+                                                            <span className={customerPair.bookingCustomer?.gender !== formatGender(customerPair.passportCustomer.sex) ? "text-red-600" : ""}>
+                                                                &nbsp;{formatGender(customerPair.passportCustomer.sex)}
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Loại:
+                                                            <span className={customerPair.bookingCustomer?.personalKind !== customerPair.passportCustomer.personalKind ? "text-red-600" : ""}>
+                                                                &nbsp;{customerPair.passportCustomer.personalKind || 'Chưa có thông tin'}
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Nơi sinh:
+                                                            <span className={customerPair.bookingCustomer?.birthPlace !== customerPair.passportCustomer.placeOfBirth ? "text-red-600" : ""}>
+                                                                &nbsp;{customerPair.passportCustomer.placeOfBirth || 'Chưa có thông tin'}
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Địa chỉ:
+                                                            <span className={customerPair.bookingCustomer?.address !== customerPair.passportCustomer.address ? "text-red-600" : ""}>
+                                                                &nbsp;{customerPair.passportCustomer.address || 'Chưa có thông tin'}
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Quốc tịch:
+                                                            <span className={customerPair.bookingCustomer?.nationality !== customerPair.passportCustomer.nationality ? "text-red-600" : ""}>
+                                                                &nbsp;{customerPair.passportCustomer.nationality || 'Chưa có thông tin'}
+                                                            </span>
+                                                        </p>
+                                                        <p className='font-bold'>Thông tin Passport:</p>
+                                                        <p>
+                                                            Số Passport:
+                                                            <span className={customerPair.bookingCustomer?.documentNumber !== customerPair.passportCustomer.passportNo ? "text-red-600" : ""}>
+                                                                &nbsp;{customerPair.passportCustomer.passportNo}
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Ngày sinh:
+                                                            <span className={customerPair.bookingCustomer?.dateOfBirth !== customerPair.passportCustomer.dateOfBirth ? "text-red-600" : ""}>
+                                                                &nbsp;{formatDate(customerPair.passportCustomer.dateOfBirth)}
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Ngày cấp:
+                                                            <span className={customerPair.bookingCustomer?.issueDate !== customerPair.passportCustomer.dateOfIssue ? "text-red-600" : ""}>
+                                                                &nbsp;{formatDate(customerPair.passportCustomer.dateOfIssue)}
+                                                            </span>
+                                                        </p>
+                                                        <p>
+                                                            Ngày hết hạn:
+                                                            <span className={customerPair.bookingCustomer?.expireDate !== customerPair.passportCustomer.dateOfExpiry ? "text-red-600" : ""}>
+                                                                &nbsp;{formatDate(customerPair.passportCustomer.dateOfExpiry)}
+                                                            </span>
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    <p className='text-center font-semibold text-lg mobile:text-base'>Chưa có thông tin khách hàng</p>
+                                                )}
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="flex justify-center items-center mobile:flex-col py-4">
+                                            <p className='font-semibold text-balance text-center'>
+                                                Không tìm thấy khách hàng nào từ Passport
+                                            </p>
+                                            <UserRoundX className='ml-2 w-6 mobile:mt-2' />
                                         </div>
-                                    ))
-                                ) : (
-                                    <div className='flex mt-12 justify-center items-center'>
-                                        <p className='font-semibold text-lg mr-2'>
-                                            Không tìm thấy khách hàng nào từ Passport
-                                        </p>
-                                        <UserRoundX className='-translate-y-0.5' />
-                                    </div>
-                                )}
+
+                                    )}
+                                </div>
                             </>
                         )}
                     </div>
@@ -588,7 +641,7 @@ const PassportRead = () => {
                 </div>
                 <div className='gap-4 flex justify-end items-center mr-4 pb-2 mobile:mx-1.5 mobile:gap-3'>
                     <div>
-                        <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance">Lưu và cập nhật eTour</button>
+                        <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" >Lưu và cập nhật eTour</button>
                     </div>
                     <div>
                         <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" onClick={handleSave}>Lưu</button>
@@ -600,9 +653,6 @@ const PassportRead = () => {
                             </div>
                         </div>
                     )}
-                    <div>
-                        <button className='btn btn-info no-animation mobile:h-auto mobile:text-balance' onClick={handleButtonClickRoute}>Đọc CCCD/CMND</button>
-                    </div>
                     <div>
                         <button className="btn btn-error no-animation" onClick={handleClose}>Thoát</button>
                     </div>

@@ -88,16 +88,18 @@ const ListCustomers = () => {
     return (
         <>
             <div className="w-full min-h-screen">
-                <div className='flex justify-center my-4 items-center'>
-                    <p className='uppercase font-semibold text-3xl mr-2'>Danh sách khách hàng</p>
-                    <label className="swap swap-flip text-3xl -translate-y-0.5">
-                        <input type="checkbox" />
-                        <div className="swap-on">👥</div>
-                        <div className="swap-off">👤</div>
-                    </label>
+                <div className='flex justify-center my-4'>
+                    <p className='uppercase font-semibold text-3xl mr-2 items-center mobile:text-balance mobile:text-center mobile:text-lg'>
+                        Danh sách khách hàng
+                        <label className="swap swap-flip text-3xl translate-y-1 mobile:text-base">
+                            <input type="checkbox" />
+                            <div className="swap-on">👥</div>
+                            <div className="swap-off">👤</div>
+                        </label>
+                    </p>
                 </div>
-                <div className='w-full flex justify-end my-4'>
-                    <label className="input input-bordered input-info flex items-center gap-2 w-2/6 mx-4">
+                <div className='w-full flex justify-end my-4 mobile:justify-center'>
+                    <label className="input input-bordered input-info flex items-center gap-2 w-2/6 mx-4 mobile:w-full">
                         <input
                             type="text"
                             className="grow"
@@ -118,19 +120,19 @@ const ListCustomers = () => {
                     </label>
                 </div>
                 {loading ? (
-                    <div className="flex flex-col justify-center items-center h-screen">
+                    <div className="flex flex-col justify-center items-center mobile:flex-col">
                         <span className="loading loading-infinity w-28"></span>
                         <p className='font-semibold flex justify-center items-center text-center'>
                             Đang tải dữ liệu khách hàng...
-                            <Smile className='ml-2 w-6' />
+                            <Smile className='ml-2 w-6 mobile:mt-2' />
                         </p>
                     </div>
                 ) : error ? (
-                    <div className="flex flex-col justify-center items-center h-screen">
-                        <p className='font-semibold flex justify-center items-center text-center'>
+                    <div className="flex justify-center items-center mobile:flex-col min-h-screen">
+                        <p className='font-semibold text-balance text-center'>
                             Đã có lỗi xảy ra ở phía hệ thống, vui lòng thử lại sau
-                            <Frown className='ml-2 w-6' />
                         </p>
+                        <Frown className='ml-2 w-6 mobile:mt-2' />
                     </div>
                 ) : currentCustomers.length === 0 ? (
                     <div className="flex flex-col justify-center items-center">
@@ -142,7 +144,7 @@ const ListCustomers = () => {
                 ) : (
                     <>
                         <div className="overflow-x-auto overflow-y-auto">
-                            <table className="table">
+                            <table className="table table-pin-cols">
                                 <thead>
                                     <tr>
                                         <th>STT</th>
@@ -193,8 +195,7 @@ const ListCustomers = () => {
                         </div>
                     </>
                 )}
-
-                <div className='flex justify-end items-center mx-4'>
+                <div className='flex justify-end items-center mx-4 my-4'>
                     <button className="btn btn-error" onClick={handleClose}>
                         Thoát
                     </button>
