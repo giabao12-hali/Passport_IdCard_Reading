@@ -66,6 +66,7 @@ const IdCardRead = () => {
                 const { memberInfors, totalGuest, bookingNo, tourCode } = response.data.response;
 
                 const customerData = memberInfors.map((member, index) => ({
+                    memberId : member.memberId,
                     stt: index + 1,
                     fullName: member.fullName,
                     gender: member.gender === 1 ? 'Nam' : 'Nữ',
@@ -256,25 +257,38 @@ const IdCardRead = () => {
         }
     };
     //#endregion
+    
     //#region copy to clipboard
-
     const handleCopyToClipboard = (event) => {
         event.preventDefault();
+        const idCardData = customersIdCard.map((passportCustomer) => {
+            const normalizedIdCardNo = passportCustomer.idCardNo?.trim().toUpperCase();
 
-        const idCardData = customersIdCard.map((customer) => ({
-            fullName: customer.fullName || '',
-            sex: customer.Sex || '',
-            placeOfBirth: customer.dateOfBirth || '',
-            nationality: customer.nationality || '',
-            idCardNo: customer.idCardNo || '',
-            dateOfBirth: customer.dateOfBirth || '',
-            dateOfIssue: customer.dateOfIssue || '',
-            dateOfExpiry: customer.dateOfExpiry || '',
-        }));
+            const matchingMember = customersEtour.find((member) => {
+                const normalizedDocumentNumber = member.documentNumber?.trim().toUpperCase();
 
-        const message = { copyAll: JSON.stringify(idCardData, null, 2) }
+                return normalizedDocumentNumber === normalizedIdCardNo;
+            });
 
-        console.log("Dữ liệu JSON: ", idCardData);
+            return {
+                fullName: passportCustomer.fullName || '',
+                nationality: passportCustomer.nationality || '',
+                dateOfBirth: passportCustomer.dateOfBirth || '',
+                sex: passportCustomer.sex || '',
+                dateOfIssue: passportCustomer.dateOfIssue || '',
+                placeOfIssue: passportCustomer.placeOfIssue || '',
+                placeOfBirth: passportCustomer.placeOfBirth || '',
+                idCardNo: passportCustomer.idCardNo || '',
+                dateOfExpiry: passportCustomer.dateOfExpiry || '',
+                issuingAuthority: passportCustomer.issuingAuthority || '',
+
+                memberId: matchingMember ? matchingMember.memberId : 'Chưa có thông tin',
+            };
+        });
+        const message = { copyAll: JSON.stringify(idCardData, null, 2) };
+
+        console.log("Dữ liệu JSON gửi đi: ", idCardData);
+
         window.parent.postMessage(message, '*');
     };
     //#endregion
