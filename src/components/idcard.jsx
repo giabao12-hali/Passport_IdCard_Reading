@@ -54,6 +54,8 @@ const IdCardRead = () => {
         navigate(`/passport-read?bookingId=${bookingId}`);
     }
 
+
+
     //#region API
     useEffect(() => {
         const fetchCustomers = async () => {
@@ -143,7 +145,7 @@ const IdCardRead = () => {
         if (customersEtour.length > 0 || customersIdCard.length > 0) {
             const mergedData = customersEtour.map(etourCustomer => {
                 const matchedIdCardCustomer = customersIdCard.find(
-                    passportCustomer => passportCustomer.idCardNo === etourCustomer.documentNumber
+                    idCardCustomer => idCardCustomer.idCardNo === etourCustomer.documentNumber
                 );
                 return {
                     bookingCustomer: etourCustomer,
@@ -255,6 +257,27 @@ const IdCardRead = () => {
     };
     //#endregion
 
+    const handleCopyToClipboard = (event) => {
+        event.preventDefault();
+
+        const idCardData = customersIdCard.map((customer) => ({
+            fullName: customer.fullName || '',
+            sex: customer.Sex || '',
+            placeOfBirth: customer.dateOfBirth || '',
+            nationality: customer.nationality || '',
+            idCardNo: customer.idCardNo || '',
+            dateOfBirth: customer.dateOfBirth || '',
+            dateOfIssue: customer.dateOfIssue || '',
+            dateOfExpiry: customer.dateOfExpiry || '',
+        }));
+
+        const message = { copyAll: idCardData }
+        const jsonData = JSON.stringify(message, null, 2);
+
+        console.log("Dữ liệu JSON: ", idCardData);
+        window.parent.postMessage(jsonData, '*');
+    };
+
     //#region Image click
     const handleImageClick = (imageUrl) => {
         setSelectedImage(imageUrl);
@@ -306,39 +329,18 @@ const IdCardRead = () => {
     };
     //#endregion
     return (
-        <div className='w-full min-h-screen p-4 mobile:p-0 tablet:p-0'>
-
-            <div className="navbar bg-base-100 mobile:flex-col mobile:gap-4">
-                <div className="flex-1 gap-8 items-center">
-                    <p className="text-xl font-semibold mobile:text-sm mobile:text-left">Code Tour:</p>
-                    <input
-                        type="text"
-                        value={tourCode || ''}
-                        className="input input-ghost input-sm"
-                        disabled
-                    />
-                </div>
-                <div className="flex-none items-center gap-8">
-                    <p className="text-xl font-semibold mobile:text-sm mobile:text-left">Số Booking:</p>
-                    <input
-                        type="text"
-                        value={bookingNo || ''}
-                        className="input input-ghost input-sm"
-                        disabled
-                    />
-                </div>
-            </div>
-            <div className='flex justify-between items-center w-full mobile:flex mobile:flex-col'>
-                <div className='mobile:pt-4'>
-                    <button className='btn btn-info no-animation mobile:h-auto mobile:text-balance' onClick={handleButtonClickRoute}>Đọc Passport</button>
-                </div>
-                <div className='handle-pictures flex gap-4 my-4 pb-4 items-center mobile:flex-col'>
-                    <p className='font-normal text-xl text-balance flex-1 mobile:text-center mobile:text-base'>Đính kèm ảnh CCCD/CMND</p>
+        <div className='w-full min-h-screen p-4 mobile:p-0 tablet:p-4'>
+            <div className='flex justify-between items-center mobile:flex mobile:flex-col'>
+                <button className='btn btn-info no-animation mobile:h-auto mobile:text-balance translate-y-[17px] mobile:mb-8' onClick={handleButtonClickRoute}>Đọc Passport</button>
+                <label className="form-control w-full max-w-xs">
+                    <div className="label">
+                        <span className="label-text">Đính kèm ảnh CCCD/CMND</span>
+                    </div>
                     <input type="file" accept='image/*' multiple onChange={handlePreviewPicture} className="file-input file-input-bordered file-input-accent max-w-xs w-full flex-none" />
-                </div>
+                </label>
             </div>
             {previewImage.length > 0 && (
-                <div className="carousel w-full">
+                <div className="carousel w-full py-12">
                     {previewImage.map((imageUrl, index) => (
                         <div
                             key={index}
@@ -369,30 +371,7 @@ const IdCardRead = () => {
                     ))}
                 </div>
             )}
-            <div className='my-5 flex mobile:flex-col mobile:gap-4'>
-                <div className='w-full flex justify-between mobile:w-full'>
-                    <label className="input input-bordered flex items-center w-full mobile:">
-                        <input
-                            type="text"
-                            className="w-full"
-                            placeholder="Tìm kiếm theo tên..."
-                            value={searchQuery}
-                            onChange={handleSearchChange}
-                        />
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 16 16"
-                            fill="currentColor"
-                            className="h-4 w-4 opacity-70">
-                            <path
-                                fillRule="evenodd"
-                                d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
-                                clipRule="evenodd" />
-                        </svg>
-                    </label>
-                </div>
-            </div>
-            <div className="w-full justify-center">
+            <div className="w-full justify-center py-6">
                 <div className="grid grid-cols-2 gap-4 mobile:flex mobile:flex-col">
 
                     {/* Cột eTour */}
@@ -518,9 +497,9 @@ const IdCardRead = () => {
                             <>
                                 {customersIdCard.length > 0 ? (
                                     Array.from({ length: Math.max(currentCustomersEtours.length, customersIdCard.length) }).map((_, index) => {
-                                        const etourCustomer = currentCustomersEtours[index];
-                                        const idCardCustomer = customersIdCard[index];
-
+                                        const customerPair = mergedCustomers[index] || {};
+                                        const etourCustomer = customerPair.bookingCustomer;
+                                        const idCardCustomer = customerPair.idCardCustomer;
                                         return (
                                             <div key={index} className="border mb-4 p-4 rounded-2xl">
                                                 <p><strong>Khách hàng {index + 1 + (currentPage - 1) * customersPerPage}</strong></p>
@@ -657,7 +636,7 @@ const IdCardRead = () => {
                 </div>
                 <div className='gap-4 flex justify-end items-center mr-4 pb-2 mobile:mx-1.5 mobile:gap-3'>
                     <div>
-                        <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" >Lưu và cập nhật eTour</button>
+                        <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>Lưu và cập nhật eTour</button>
                     </div>
                     <div>
                         <button className="btn btn-accent no-animation" onClick={handleSave}>Lưu</button>

@@ -37,7 +37,7 @@ const PassportRead = () => {
     // search state
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [customersPerPage] = useState(10);
+    const customersPerPage = 10;
 
     // image modal state
     const [selectedImage, setSelectedImage] = useState(null);
@@ -57,6 +57,30 @@ const PassportRead = () => {
     const handleButtonClickRoute = () => {
         navigate(`/idcard-read?bookingId=${bookingId}`);
     }
+
+    //#region handle form submit
+    const handleCopyToClipboard = (event) => {
+        event.preventDefault();
+
+        const passportData = customersPassport.map((customer) => ({
+            fullName: customer.fullName || '',
+            sex: customer.Sex || '',
+            placeOfBirth: formatDate(customer.dateOfBirth) || '',
+            nationality: customer.nationality || '',
+            passportNo: customer.passportNo || '',
+            dateOfBirth: formatDate(customer.dateOfBirth) || '',
+            dateOfIssue: formatDate(customer.dateOfIssue) || '',
+            dateOfExpiry: formatDate(customer.dateOfExpiry) || '',
+        }));
+
+        const message = { copyAll: passportData }
+        const jsonData = JSON.stringify(message, null, 2);
+
+        console.log("Dữ liệu JSON: ", passportData);
+        window.parent.postMessage(jsonData, '*');
+    };
+    //#endregion
+
 
 
     //#region API
@@ -278,28 +302,15 @@ const PassportRead = () => {
         window.close();
     };
 
-    //#region Searching
-    const handleSearchChange = (e) => {
-        setSearchQuery(e.target.value);
-        setCurrentPage(1);
-    };
-    const filteredCustomersEtour = customersEtour.filter(customer =>
-        customer.fullName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    const filteredCustomersPassport = customersPassport.filter(customer =>
-        customer.fullName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    //#endregion
-
     //#region Pagination
     const indexOfLastCustomer = currentPage * customersPerPage;
     const indexOfFirstCustomer = indexOfLastCustomer - customersPerPage;
 
-    const currentCustomersEtours = filteredCustomersEtour.slice(indexOfFirstCustomer, indexOfLastCustomer);
-    const currentCustomersPassports = filteredCustomersPassport.slice(indexOfFirstCustomer, indexOfLastCustomer);
+    const currentCustomersEtours = customersEtour.slice(indexOfFirstCustomer, indexOfLastCustomer);
 
-    const totalPages = Math.ceil(filteredCustomersEtour.length / customersPerPage);
+    const currentCustomersPassports = customersPassport.slice(indexOfFirstCustomer, indexOfLastCustomer);
+
+    const totalPages = Math.ceil(customersPassport.length / customersPerPage);
 
     const handlePageChange = (pageNumber) => {
         setCurrentPage(pageNumber);
@@ -309,42 +320,20 @@ const PassportRead = () => {
         });
     };
     //#endregion
-
     return (
-        <div className='w-full min-h-screen p-4 mobile:p-0 tablet:p-0'>
-
-            <div className="navbar bg-base-100 mobile:flex-col mobile:gap-4">
-                <div className="flex-1 gap-8 items-center">
-                    <p className="text-xl font-semibold mobile:text-sm mobile:text-left">Code Tour:</p>
-                    <input
-                        type="text"
-                        value={tourCode || ''}
-                        className="input input-ghost input-sm"
-                        disabled
-                    />
-                </div>
-                <div className="flex-none items-center gap-8">
-                    <p className="text-xl font-semibold mobile:text-sm mobile:text-left">Số Booking:</p>
-                    <input
-                        type="text"
-                        value={bookingNo || ''}
-                        className="input input-ghost input-sm"
-                        disabled
-                    />
-                </div>
-            </div>
-            <div className='flex justify-between items-center w-full mobile:flex mobile:flex-col'>
-                <div className='mobile:pt-4'>
-                    <button className='btn btn-info no-animation mobile:h-auto mobile:text-balance' onClick={handleButtonClickRoute}>Đọc CCCD/CMND</button>
-                </div>
-                <div className='handle-pictures flex gap-4 my-4 pb-4 items-center mobile:flex-col'>
-                    <p className='font-normal text-xl text-balance flex-1 mobile:text-center mobile:text-base'>Đính kèm ảnh Passport</p>
+        <div className='w-full min-h-screen p-4 mobile:p-0 tablet:p-4'>
+            <div className='flex justify-between items-center mobile:flex mobile:flex-col'>
+                <button className='btn btn-info no-animation mobile:h-auto mobile:text-balance translate-y-[17px] mobile:mb-8' onClick={handleButtonClickRoute}>Đọc CCCD/CMND</button>
+                <label className="form-control w-full max-w-xs">
+                    <div className="label">
+                        <span className="label-text">Đính kèm ảnh Passport</span>
+                    </div>
                     <input type="file" accept='image/*' multiple onChange={handlePreviewPicture} className="file-input file-input-bordered file-input-accent max-w-xs w-full flex-none" />
-                </div>
+                </label>
             </div>
 
             {previewImage.length > 0 && (
-                <div className="carousel w-full">
+                <div className="carousel w-full py-12">
                     {previewImage.map((imageUrl, index) => (
                         <div
                             key={index}
@@ -375,30 +364,7 @@ const PassportRead = () => {
                     ))}
                 </div>
             )}
-            <div className='my-5 flex mobile:flex-col mobile:gap-4'>
-                <div className='w-full flex justify-between mobile:w-full'>
-                    <label className="input input-bordered flex items-center w-full mobile:">
-                        <input
-                            type="text"
-                            className="w-full"
-                            placeholder="Tìm kiếm theo tên..."
-                            value={searchQuery}
-                            onChange={handleSearchChange}
-                        />
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            viewBox="0 0 16 16"
-                            fill="currentColor"
-                            className="h-4 w-4 opacity-70">
-                            <path
-                                fillRule="evenodd"
-                                d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
-                                clipRule="evenodd" />
-                        </svg>
-                    </label>
-                </div>
-            </div>
-            <div className="w-full justify-center">
+            <div className="w-full justify-center py-6">
                 <div className="grid grid-cols-2 gap-4 mobile:flex mobile:flex-col">
 
                     {/* Cột eTour */}
@@ -502,11 +468,7 @@ const PassportRead = () => {
                             </>
                         )}
                     </div>
-
-                    {/* Divider for mobile */}
                     <div className='hidden mobile:divider mobile:px-4'></div>
-
-                    {/* Cột Passport */}
                     <div className="mobile:p-4">
                         <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách Passport</h3>
                         <div className='flex justify-end mb-3 mobile:text-base'>
@@ -525,10 +487,10 @@ const PassportRead = () => {
                         ) : (
                             <>
                                 {customersPassport.length > 0 ? (
-                                    Array.from({ length: Math.max(currentCustomersEtours.length, customersPassport.length) }).map((_, index) => {
-                                        const etourCustomer = currentCustomersEtours[index];
-                                        const passportCustomer = customersPassport[index];
-
+                                    Array.from({ length: Math.max(currentCustomersEtours.length, currentCustomersPassports.length) }).map((_, index) => {
+                                        const customerPair = mergedCustomers[index] || {};
+                                        const etourCustomer = customerPair.bookingCustomer;
+                                        const passportCustomer = customerPair.passportCustomer;
                                         return (
                                             <div key={index} className="border mb-4 p-4 rounded-2xl">
                                                 <p><strong>Khách hàng {index + 1 + (currentPage - 1) * customersPerPage}</strong></p>
@@ -644,14 +606,12 @@ const PassportRead = () => {
                                         <UserRoundX className='ml-2 w-6 mobile:mt-2' />
                                     </div>
                                 )}
+
                             </>
                         )}
                     </div>
                 </div>
             </div>
-
-
-
             <footer className='my-12'>
                 <div className="join my-4 flex justify-center">
                     {Array.from({ length: totalPages }, (_, i) => (
@@ -668,7 +628,7 @@ const PassportRead = () => {
                 </div>
                 <div className='gap-4 flex justify-end items-center mr-4 pb-2 mobile:mx-1.5 mobile:gap-3'>
                     <div>
-                        <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" >Lưu và cập nhật eTour</button>
+                        <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>Lưu và cập nhật eTour</button>
                     </div>
                     <div>
                         <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" onClick={handleSave}>Lưu</button>
