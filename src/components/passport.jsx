@@ -73,11 +73,10 @@ const PassportRead = () => {
             dateOfExpiry: formatDate(customer.dateOfExpiry) || '',
         }));
 
-        const message = { copyAll: passportData }
-        const jsonData = JSON.stringify(message, null, 2);
+        const message = { copyAll: JSON.stringify(passportData, null, 2) }
 
         console.log("Dữ liệu JSON: ", passportData);
-        window.parent.postMessage(jsonData, '*');
+        window.parent.postMessage(message, '*');
     };
     //#endregion
 
@@ -382,9 +381,11 @@ const PassportRead = () => {
                                 </p>
                             </div>
                         ) : error ? (
-                            <div className="flex justify-center items-center mobile:flex-col">
-                                <p className='font-semibold text-balance text-center'>Đã có lỗi xảy ra ở phía hệ thống, vui lòng thử lại sau</p>
-                                <Frown className='ml-2 w-6 mobile:mt-2' />
+                            <div className="flex flex-col justify-center items-center ">
+                                <p className='font-semibold flex items-center text-center mobile:flex-col'>
+                                    Đã có lỗi xảy ra ở phía hệ thống, vui lòng thử lại sau
+                                    <Frown className='ml-2 w-6 mobile:mt-2' />
+                                </p>
                             </div>
                         ) : (
                             <>

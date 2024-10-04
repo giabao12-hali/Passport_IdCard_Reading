@@ -256,6 +256,7 @@ const IdCardRead = () => {
         }
     };
     //#endregion
+    //#region copy to clipboard
 
     const handleCopyToClipboard = (event) => {
         event.preventDefault();
@@ -271,12 +272,12 @@ const IdCardRead = () => {
             dateOfExpiry: customer.dateOfExpiry || '',
         }));
 
-        const message = { copyAll: idCardData }
-        const jsonData = JSON.stringify(message, null, 2);
+        const message = { copyAll: JSON.stringify(idCardData, null, 2) }
 
         console.log("Dữ liệu JSON: ", idCardData);
-        window.parent.postMessage(jsonData, '*');
+        window.parent.postMessage(message, '*');
     };
+    //#endregion
 
     //#region Image click
     const handleImageClick = (imageUrl) => {
