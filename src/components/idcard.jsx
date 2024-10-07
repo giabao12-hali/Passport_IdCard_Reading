@@ -536,7 +536,7 @@ const IdCardRead = () => {
                     <div className="mobile:p-4">
                         <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách CCCD/CMND</h3>
                         <div className='flex justify-end mb-3 mobile:text-base'>
-                            <p className='text-lg'>Tổng số khách nhập từ CCCD/CMND: <span className='font-semibold'>{totalGuestIdCards}</span></p>
+                            <p className='text-lg'>Tổng số khách nhập từ CCCD/CMND: <span className='font-semibold'>{totalGuestIdCards || customersIdCard.length}</span></p>
                         </div>
                         {loadingIdCards ? (
                             <div className="flex flex-col justify-center items-center">

@@ -228,7 +228,7 @@ const PassportRead = () => {
                     bookingId: bookingId
                 }))
             };
-            
+
             const response = await axios.post(`http://108.108.110.73:1212/api/Customers/save?bookingId=${bookingId}`, payload, {
                 headers: {
                     'Accept': '*/*',
@@ -530,7 +530,7 @@ const PassportRead = () => {
                     <div className="mobile:p-4">
                         <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách Passport</h3>
                         <div className='flex justify-end mb-3 mobile:text-base'>
-                            <p className='text-lg'>Tổng số khách nhập từ Passport: <span className='font-semibold'>{totalGuestPassports}</span></p>
+                            <p className='text-lg'>Tổng số khách nhập từ Passport: <span className='font-semibold'>{totalGuestPassports || customersPassport.length}</span></p>
                         </div>
                         {loadingPassports ? (
                             <div className="flex flex-col justify-center items-center">
