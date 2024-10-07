@@ -14,8 +14,7 @@ const IdCardRead = () => {
     const [mergedCustomers, setMergedCustomers] = useState([]);
 
     const [totalGuestIdCards, setTotalGuestIdCards] = useState(0);
-    const [bookingNo, setBookingNo] = useState("");
-    const [tourCode, setTourCode] = useState("");
+
 
     // query params state
     const location = useLocation();
@@ -63,10 +62,10 @@ const IdCardRead = () => {
             try {
                 setLoading(true);
                 const response = await axios.get(`http://108.108.110.22:4105/api/Booking/GetBookingMember?BookingId=${bookingId}`);
-                const { memberInfors, totalGuest, bookingNo, tourCode } = response.data.response;
+                const { memberInfors, totalGuest } = response.data.response;
 
                 const customerData = memberInfors.map((member, index) => ({
-                    memberId : member.memberId,
+                    memberId: member.memberId,
                     stt: index + 1,
                     fullName: member.fullName,
                     gender: member.gender === 1 ? 'Nam' : 'Nữ',
@@ -82,8 +81,7 @@ const IdCardRead = () => {
 
                 setCustomersEtour(customerData);
                 setTotalGuest(totalGuest);
-                setBookingNo(bookingNo);
-                setTourCode(tourCode);
+
             } catch (err) {
                 setError('Đã xảy ra lỗi khi tải dữ liệu eTour.');
             } finally {
@@ -143,6 +141,38 @@ const IdCardRead = () => {
     }, [fileArray]);
 
     useEffect(() => {
+        console.log("Booking ID: ", bookingId);
+
+        if (!bookingId) return;
+
+        let isMounted = true;
+
+        const getListCustomers = async () => {
+            console.log("Calling API...");
+            try {
+                const response = await axios.get(`http://108.108.110.73:1212/api/Customers/get-list-customers-by-bookingId/${bookingId}`);
+
+                if (isMounted) {
+                    console.log("API response: ", response.data);
+                    setCustomersIdCard(response.data.customerBooking);
+                }
+            } catch (err) {
+                console.error("API Error: ", err);
+                setError('Đã xảy ra lỗi khi tải dữ liệu khách hàng.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        getListCustomers();
+
+        return () => {
+            console.log("Cleaning up...");
+            isMounted = false;
+        };
+    }, [bookingId]);
+
+    useEffect(() => {
         if (customersEtour.length > 0 || customersIdCard.length > 0) {
             const mergedData = customersEtour.map(etourCustomer => {
                 const matchedIdCardCustomer = customersIdCard.find(
@@ -158,9 +188,18 @@ const IdCardRead = () => {
     }, [customersEtour, customersIdCard]);
     //#endregion
 
-    //#region Get save customer API
+    //#region Save API
     const handleSave = async () => {
         try {
+            const queryParams = new URLSearchParams(window.location.search);
+            const bookingId = queryParams.get('bookingId');
+
+            if (!bookingId) {
+                setToastMessage('Không tìm thấy Booking ID.');
+                setToastType('error');
+                return;
+            }
+
             const payload = {
                 extractedData: customersIdCard.map((customer) => ({
                     type: customer.type,
@@ -174,10 +213,16 @@ const IdCardRead = () => {
                     placeOfBirth: customer.placeOfBirth,
                     idCardNo: customer.idCardNo,
                     dateOfExpiry: customer.dateOfExpiry,
-                    issuingAuthority: customer.issuingAuthority
+                    issuingAuthority: customer.issuingAuthority,
+                    bookingId: bookingId
                 }))
             };
-            const response = await axios.post('http://108.108.110.73:1212/api/Customers/save', payload);
+            const response = await axios.post(`http://108.108.110.73:1212/api/Customers/save?bookingId=${bookingId}`, payload, {
+                headers: {
+                    'Accept': '*/*',
+                    'Content-Type': 'application/json'
+                }
+            });
 
             if (response.status === 200) {
                 setToastMessage('Lưu thông tin khách hàng thành công!');
@@ -218,8 +263,15 @@ const IdCardRead = () => {
         const fileArr = Array.from(files);
         const previewUrls = fileArr.map(file => URL.createObjectURL(file));
 
-        setFileArray(fileArr);
-        setPreviewImage(previewUrls);
+        setFileArray(prevFiles => [...prevFiles, ...fileArr]);
+        setPreviewImage(prevImages => [...prevImages, ...previewUrls]);
+    };
+    //#endregion
+
+    //#region Image click
+    const handleImageClick = (imageUrl) => {
+        setSelectedImage(imageUrl);
+        document.getElementById('image_modal_checkbox').checked = true;
     };
     //#endregion
 
@@ -257,7 +309,7 @@ const IdCardRead = () => {
         }
     };
     //#endregion
-    
+
     //#region copy to clipboard
     const handleCopyToClipboard = (event) => {
         event.preventDefault();
@@ -283,6 +335,7 @@ const IdCardRead = () => {
                 issuingAuthority: passportCustomer.issuingAuthority || '',
 
                 memberId: matchingMember ? matchingMember.memberId : 'Chưa có thông tin',
+                bookingId: bookingId || 'Chưa có thông tin',
             };
         });
         const message = { copyAll: JSON.stringify(idCardData, null, 2) };
@@ -293,17 +346,7 @@ const IdCardRead = () => {
     };
     //#endregion
 
-    //#region Image click
-    const handleImageClick = (imageUrl) => {
-        setSelectedImage(imageUrl);
-    };
 
-    const handleCloseImage = (e) => {
-        if (e.target.id === "image-modal") {
-            setSelectedImage(null);
-        }
-    };
-    //#endregion
 
     const handleClose = () => {
         localStorage.clear();
@@ -312,28 +355,14 @@ const IdCardRead = () => {
     };
     //#endregion
 
-    //#region Searching
-    const handleSearchChange = (e) => {
-        setSearchQuery(e.target.value);
-        setCurrentPage(1);
-    };
-    const filteredCustomersEtour = customersEtour.filter(customer =>
-        customer.fullName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    const filteredCustomersIdCard = customersIdCard.filter(customer =>
-        customer.fullName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    //#endregion
-
     //#region Pagination
     const indexOfLastCustomer = currentPage * customersPerPage;
     const indexOfFirstCustomer = indexOfLastCustomer - customersPerPage;
 
-    const currentCustomersEtours = filteredCustomersEtour.slice(indexOfFirstCustomer, indexOfLastCustomer);
-    const currentCustomersIdCards = filteredCustomersIdCard.slice(indexOfFirstCustomer, indexOfLastCustomer);
+    const currentCustomersEtours = customersEtour.slice(indexOfFirstCustomer, indexOfLastCustomer);
+    const currentCustomersIdCards = customersIdCard.slice(indexOfFirstCustomer, indexOfLastCustomer);
 
-    const totalPages = Math.ceil(filteredCustomersEtour.length / customersPerPage);
+    const totalPages = Math.ceil(customersIdCard.length / customersPerPage);
 
     const handlePageChange = (pageNumber) => {
         setCurrentPage(pageNumber);
@@ -354,38 +383,49 @@ const IdCardRead = () => {
                     <input type="file" accept='image/*' multiple onChange={handlePreviewPicture} className="file-input file-input-bordered file-input-accent max-w-xs w-full flex-none" />
                 </label>
             </div>
-            {previewImage.length > 0 && (
-                <div className="carousel w-full py-12">
-                    {previewImage.map((imageUrl, index) => (
-                        <div
-                            key={index}
-                            id={`slide${index + 1}`}
-                            className="carousel-item relative w-full flex justify-center"
-                        >
-                            <img
-                                src={imageUrl}
-                                className="shadow-2xl rounded-xl h-auto w-1/3 bg-center object-center cursor-pointer"
-                                alt={`Slide ${index + 1}`}
-                                onClick={() => handleImageClick(imageUrl)}
-                            />
-                            <div className="absolute left-5 right-5 top-1/2 flex -translate-y-1/2 transform justify-between">
-                                <a
-                                    href={`#slide${index === 0 ? previewImage.length : index}`}
-                                    className="btn btn-circle"
-                                >
-                                    ❮
-                                </a>
-                                <a
-                                    href={`#slide${(index + 1) % previewImage.length === 0 ? 1 : index + 2}`}
-                                    className="btn btn-circle"
-                                >
-                                    ❯
-                                </a>
+            <div>
+                {previewImage.length > 0 && (
+                    <div className="carousel w-full py-12">
+                        {previewImage.map((imageUrl, index) => (
+                            <div
+                                key={index}
+                                id={`slide${index + 1}`}
+                                className="carousel-item relative w-full flex justify-center"
+                            >
+                                <img
+                                    src={imageUrl}
+                                    className="shadow-2xl rounded-xl h-auto w-1/3 bg-center object-center cursor-pointer"
+                                    alt={`Slide ${index + 1}`}
+                                    onClick={() => handleImageClick(imageUrl)}
+                                />
+                                <div className="absolute left-5 right-5 top-1/2 flex -translate-y-1/2 transform justify-between">
+                                    <a
+                                        href={`#slide${index === 0 ? previewImage.length : index}`}
+                                        className="btn btn-circle"
+                                    >
+                                        ❮
+                                    </a>
+                                    <a
+                                        href={`#slide${(index + 1) % previewImage.length === 0 ? 1 : index + 2}`}
+                                        className="btn btn-circle"
+                                    >
+                                        ❯
+                                    </a>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        ))}
+                    </div>
+                )}
+                <input type="checkbox" id="image_modal_checkbox" className="modal-toggle" />
+                <div className="modal">
+                    <div className="modal-box">
+                        {selectedImage && (
+                            <img src={selectedImage} alt="Zoomed Avatar" className="max-h-screen max-w-screen" />
+                        )}
+                    </div>
+                    <label className="modal-backdrop" htmlFor="image_modal_checkbox">Close</label>
                 </div>
-            )}
+            </div>
             <div className="w-full justify-center py-6">
                 <div className="grid grid-cols-2 gap-4 mobile:flex mobile:flex-col">
 
@@ -571,54 +611,14 @@ const IdCardRead = () => {
                                                     </div>
                                                 ) : (
                                                     <div>
-                                                        <p>
-                                                            Họ tên:
-                                                            <span>
-                                                                &nbsp;Chưa có thông tin
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Giới tính:
-                                                            <span>
-                                                                &nbsp;Chưa có thông tin
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Nơi sinh:
-                                                            <span>
-                                                                &nbsp;Chưa có thông tin
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Quốc tịch:
-                                                            <span>
-                                                                &nbsp;Chưa có thông tin
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Số Passport:
-                                                            <span>
-                                                                &nbsp;Chưa có thông tin
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Ngày sinh:
-                                                            <span>
-                                                                &nbsp;Chưa có thông tin
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Ngày cấp:
-                                                            <span>
-                                                                &nbsp;Chưa có thông tin
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Ngày hết hạn:
-                                                            <span>
-                                                                &nbsp;Chưa có thông tin
-                                                            </span>
-                                                        </p>
+                                                        <p>Họ tên:<span>&nbsp;Chưa có thông tin</span></p>
+                                                        <p>Giới tính:<span>&nbsp;Chưa có thông tin</span></p>
+                                                        <p>Nơi sinh:<span>&nbsp;Chưa có thông tin</span></p>
+                                                        <p>Quốc tịch:<span>&nbsp;Chưa có thông tin</span></p>
+                                                        <p>Số Passport:<span>&nbsp;Chưa có thông tin</span></p>
+                                                        <p>Ngày sinh:<span>&nbsp;Chưa có thông tin</span></p>
+                                                        <p>Ngày cấp:<span>&nbsp;Chưa có thông tin</span></p>
+                                                        <p>Ngày hết hạn:<span>&nbsp;Chưa có thông tin</span></p>
                                                     </div>
                                                 )}
                                             </div>
@@ -626,7 +626,7 @@ const IdCardRead = () => {
                                     })
                                 ) : (
                                     <div className="flex justify-center items-center mobile:flex-col py-4">
-                                        <p className='font-semibold text-balance text-center'>Không tìm thấy khách hàng nào từ CCCD/CMND</p>
+                                        <p className='font-semibold text-balance text-center'>Không tìm thấy khách hàng</p>
                                         <UserRoundX className='ml-2 w-6 mobile:mt-2' />
                                     </div>
                                 )}
@@ -668,18 +668,6 @@ const IdCardRead = () => {
                     </div>
                 </div>
             </footer>
-            {selectedImage && (
-                <div
-                    id="image-modal"
-                    className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
-                    onClick={handleCloseImage}
-                >
-                    <div className="bg-white p-4 rounded-xl shadow-lg">
-                        <img src={selectedImage} alt="Zoomed Avatar" className="max-h-screen max-w-screen" />
-                    </div>
-                </div>
-            )}
-
         </div>
     );
 }
