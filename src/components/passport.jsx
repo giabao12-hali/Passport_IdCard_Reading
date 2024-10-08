@@ -6,12 +6,13 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 const PassportRead = () => {
     // customer state
-    const [customersEtour, setCustomersEtour] = useState([]);
-    const [customersPassport, setCustomersPassport] = useState([]);
+    const [customersEtour, setCustomersEtour] = useState([]); //* mảng A
+    const [listCustomers, setListCustomers] = useState([]); //* mảng B list từ api
+    const [customersPassport, setCustomersPassport] = useState([]); //* mảng C upload file
     const [totalGuest, setTotalGuest] = useState(0);
     const [totalGuestPassports, setTotalGuestPassports] = useState(0);
 
-    const [mergedCustomers, setMergedCustomers] = useState([]);
+    const [mergedCustomers, setMergedCustomers] = useState([]); //* mảng D = B + C
 
     // query params state
     const location = useLocation();
@@ -136,67 +137,87 @@ const PassportRead = () => {
     //#endregion
 
     useEffect(() => {
-        console.log("Booking ID: ", bookingId);
-    
         if (!bookingId) return;
-    
         let isMounted = true;
-    
+
         const getListCustomers = async () => {
-            console.log("Calling API...");
             try {
                 const response = await axios.get(`http://108.108.110.73:1212/api/Customers/get-list-customers-by-bookingId/${bookingId}`);
-    
+
                 if (isMounted) {
-                    console.log("API response: ", response.data);
-                    setCustomersPassport(response.data.customerBooking);
+                    setListCustomers(response.data.customerBooking);
                 }
             } catch (err) {
-                console.error("API Error: ", err);
                 setError('Đã xảy ra lỗi khi tải dữ liệu khách hàng.');
             } finally {
                 setLoading(false);
             }
         };
-    
         getListCustomers();
-    
         return () => {
-            console.log("Cleaning up...");
             isMounted = false;
         };
     }, [bookingId]);
-    
+
 
 
     //#region Merge customers
     useEffect(() => {
-        if (customersEtour.length > 0 || customersPassport.length > 0) {
+        // Kiểm tra nếu có dữ liệu từ mảng A, B hoặc C
+        if (customersEtour.length > 0 || listCustomers.length > 0 || customersPassport.length > 0) {
+            let updatedListCustomers = [...listCustomers];  // Sao chép listCustomers (mảng B)
             let mergedData = [];
-            customersEtour.forEach(etourCustomer => {
-                const matchedPassportCustomer = customersPassport.find(
-                    passportCustomer => passportCustomer.passportNo === etourCustomer.documentNumber
-                );
-                mergedData.push({
-                    bookingCustomer: etourCustomer,
-                    passportCustomer: matchedPassportCustomer || null,
-                });
-            });
+    
+            // Bước 1: Lưu đè dữ liệu từ mảng C lên mảng B nếu có passportNo trùng
             customersPassport.forEach(passportCustomer => {
-                const matchedEtourCustomer = customersEtour.find(
-                    etourCustomer => etourCustomer.documentNumber === passportCustomer.passportNo
+                const indexInListCustomers = updatedListCustomers.findIndex(
+                    customer => customer.passportNo === passportCustomer.passportNo
                 );
-                if (!matchedEtourCustomer) {
-                    mergedData.push({
-                        bookingCustomer: null,
-                        passportCustomer: passportCustomer,
-                    });
+    
+                // Nếu tìm thấy khách hàng có số passport trùng, lưu đè dữ liệu
+                if (indexInListCustomers !== -1) {
+                    updatedListCustomers[indexInListCustomers] = {
+                        ...updatedListCustomers[indexInListCustomers],
+                        ...passportCustomer // Lưu đè dữ liệu từ mảng C lên mảng B
+                    };
+                } else {
+                    // Nếu không tìm thấy khách hàng trùng trong mảng B, thêm mới từ mảng C
+                    updatedListCustomers.push(passportCustomer);
                 }
             });
-
+    
+            // Bước 2: So sánh mảng A (customersEtour) và mảng D (updatedListCustomers) và merge
+            customersEtour.forEach(etourCustomer => {
+                const matchedPassportCustomer = updatedListCustomers.find(
+                    passportCustomer => passportCustomer.passportNo === etourCustomer.documentNumber
+                );
+    
+                // Thêm vào mergedData nếu có khách hàng trùng hoặc không
+                mergedData.push({
+                    bookingCustomer: etourCustomer,
+                    passportCustomer: matchedPassportCustomer || null, // Nếu không có khách hàng trùng, passportCustomer là null
+                });
+            });
+    
+            // Bước 3: Thêm các khách hàng từ mảng D (updatedListCustomers) không có trong mảng A (customersEtour)
+            const unmatchedPassportCustomers = updatedListCustomers.filter(
+                passportCustomer => !customersEtour.some(
+                    etourCustomer => etourCustomer.documentNumber === passportCustomer.passportNo
+                )
+            );
+    
+            unmatchedPassportCustomers.forEach(passportCustomer => {
+                mergedData.push({
+                    bookingCustomer: null, // Không có khách hàng từ etour
+                    passportCustomer: passportCustomer // Thông tin từ passport
+                });
+            });
+    
+            // Cập nhật mergedCustomers với dữ liệu đã xử lý
             setMergedCustomers(mergedData);
         }
-    }, [customersEtour, customersPassport]);
+    }, [customersEtour, listCustomers, customersPassport]);
+    
     //#endregion
 
     //#region Save API
@@ -263,9 +284,6 @@ const PassportRead = () => {
     //#endregion
 
     //#endregion
-
-
-
 
     //#region Function
 
@@ -389,10 +407,6 @@ const PassportRead = () => {
     const indexOfLastCustomer = currentPage * customersPerPage;
     const indexOfFirstCustomer = indexOfLastCustomer - customersPerPage;
 
-    const currentCustomersEtours = customersEtour.slice(indexOfFirstCustomer, indexOfLastCustomer);
-
-    const currentCustomersPassports = customersPassport.slice(indexOfFirstCustomer, indexOfLastCustomer);
-
     const totalPages = Math.ceil(customersPassport.length / customersPerPage);
 
     const handlePageChange = (pageNumber) => {
@@ -414,7 +428,7 @@ const PassportRead = () => {
                     <div className="label">
                         <span className="label-text">Đính kèm ảnh Passport</span>
                     </div>
-                    <input type="file" accept='image/*' multiple onChange={handlePreviewPicture} className="file-input file-input-bordered file-input-accent max-w-xs w-full flex-none" />
+                    <input type="file" accept='image/png, image/jpeg, image/jpg' multiple onChange={handlePreviewPicture} className="file-input file-input-bordered file-input-accent max-w-xs w-full flex-none" />
                 </label>
             </div>
 
@@ -461,130 +475,151 @@ const PassportRead = () => {
                     <label className="modal-backdrop" htmlFor="image_modal_checkbox">Close</label>
                 </div>
             </div>
-
             <div className="w-full justify-center py-6">
-                <div className="grid grid-cols-2 gap-4 mobile:flex mobile:flex-col">
+                <div className="gap-4 mobile:flex mobile:flex-col">
                     <div className="mobile:p-4">
-                        <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách eTour</h3>
+                        <div className='grid grid-cols-2 mobile:hidden'>
+                            <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách eTour</h3>
+                            <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách Passport</h3>
+                        </div>
                         <div className="flex justify-end mb-3">
-                            <p className="text-lg mobile:text-base">Tổng số khách trong eTour: <span className="font-semibold">{totalGuest}</span></p>
+                            <p className="text-lg mobile:text-base">Tổng số khách: <span className="font-semibold">{totalGuest} khách</span></p>
                         </div>
-                        {loading ? (
-                            <div className="flex flex-col justify-center items-center mobile:flex-col">
-                                <span className="loading loading-infinity w-28"></span>
-                                <p className='font-semibold flex justify-center items-center text-center'>
-                                    Đang tải dữ liệu khách hàng...
-                                    <Smile className='ml-2 w-6 mobile:mt-2' />
-                                </p>
-                            </div>
-                        ) : error ? (
-                            <div className="flex flex-col justify-center items-center ">
-                                <p className='font-semibold flex items-center text-center mobile:flex-col'>
-                                    Đã có lỗi xảy ra ở phía hệ thống, vui lòng thử lại sau
-                                    <Frown className='ml-2 w-6 mobile:mt-2' />
-                                </p>
-                            </div>
-                        ) : (
-                            <>
-                                {Math.max(currentCustomersEtours.length, currentCustomersPassports.length) > 0 ? (
-                                    Array.from({ length: Math.max(currentCustomersEtours.length, currentCustomersPassports.length) }).map((_, index) => (
-                                        <div key={index} className="border mb-4 p-4 bg-yellow-200 rounded-2xl">
-                                            <p><strong>Khách hàng {index + 1 + (currentPage - 1) * customersPerPage}</strong></p>
-                                            {currentCustomersEtours[index] ? (
-                                                <>
-                                                    <p>Họ tên: {currentCustomersEtours[index].fullName}</p>
-                                                    <p>Giới tính: {currentCustomersEtours[index].gender}</p>
-                                                    <p>Nơi sinh: {currentCustomersEtours[index].birthPlace}</p>
-                                                    <p>Quốc tịch: {currentCustomersEtours[index].nationality}</p>
-                                                    <p>Số Passport: {currentCustomersEtours[index].documentNumber}</p>
-                                                    <p>Ngày sinh: {formatDate(currentCustomersEtours[index].dateOfBirth)}</p>
-                                                    <p>Ngày cấp: {formatDate(currentCustomersEtours[index].issueDate)}</p>
-                                                    <p>Ngày hết hạn: {formatDate(currentCustomersEtours[index].expireDate)}</p>
-                                                </>
-                                            ) : (
-                                                <div>
-                                                    <p>Họ tên:<span>&nbsp;Chưa có thông tin</span></p>
-                                                    <p>Giới tính:<span>&nbsp;Chưa có thông tin</span></p>
-                                                    <p>Nơi sinh:<span>&nbsp;Chưa có thông tin</span></p>
-                                                    <p>Quốc tịch:<span>&nbsp;Chưa có thông tin</span></p>
-                                                    <p>Số Passport:<span>&nbsp;Chưa có thông tin</span></p>
-                                                    <p>Ngày sinh:<span>&nbsp;Chưa có thông tin</span></p>
-                                                    <p>Ngày cấp:<span>&nbsp;Chưa có thông tin</span></p>
-                                                    <p>Ngày hết hạn:<span>&nbsp;Chưa có thông tin</span></p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="flex justify-center items-center mobile:flex-col py-4">
-                                        <p className='font-semibold text-balance text-center'>
-                                            Không tìm thấy khách hàng nào từ eTour
-                                        </p>
-                                        <UserRoundX className='ml-2 w-6 mobile:mt-2' />
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
-                    <div className='hidden mobile:divider mobile:px-4'></div>
-                    <div className="mobile:p-4">
-                        <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách Passport</h3>
-                        <div className='flex justify-end mb-3 mobile:text-base'>
-                            <p className='text-lg'>Tổng số khách nhập từ Passport: <span className='font-semibold'>{totalGuestPassports || customersPassport.length}</span></p>
-                        </div>
-                        {loadingPassports ? (
-                            <div className="flex flex-col justify-center items-center">
-                                <div className="radial-progress" style={{ "--value": progress }} role="progressbar">{progress}%</div>
-                                <p className='font-semibold flex justify-center items-center text-center mt-4'>Đang tải dữ liệu khách hàng...</p>
-                            </div>
-                        ) : errorPassport ? (
-                            <div className="flex justify-center items-center mobile:flex-col">
-                                <p className='font-semibold flex justify-center items-center text-center'>Đã có lỗi xảy ra ở phía hệ thống, vui lòng thử lại sau</p>
-                                <Frown className='ml-2 w-6 mobile:mt-2' />
-                            </div>
-                        ) : (
-                            <>
-                                {customersPassport.length > 0 ? (
-                                    mergedCustomers.map((customerPair, index) => {
-                                        const etourCustomer = customerPair.bookingCustomer;
-                                        const passportCustomer = customerPair.passportCustomer;
-                                        return (
-                                            <div key={index} className="border mb-4 p-4 rounded-2xl">
-                                                <p><strong>Khách hàng {index + 1 + (currentPage - 1) * customersPerPage}</strong></p>
-                                                {passportCustomer ? (
-                                                    <div>
-                                                        <p>Họ tên:<span className={(etourCustomer && cleanString(etourCustomer.fullName) !== cleanString(passportCustomer.fullName)) || !etourCustomer ? "text-red-600" : ""}>&nbsp;{passportCustomer.fullName}</span></p>
-                                                        <p>Giới tính:<span className={(etourCustomer && cleanString(etourCustomer.gender) !== cleanString(formatGender(passportCustomer.sex))) || !etourCustomer ? "text-red-600" : ""}>&nbsp;{formatGender(passportCustomer.sex)}</span></p>
-                                                        <p>Nơi sinh:<span className={(etourCustomer && cleanString(etourCustomer.birthPlace) !== cleanString(passportCustomer.placeOfBirth)) || !etourCustomer ? "text-red-600" : ""}>&nbsp;{passportCustomer.placeOfBirth || 'Chưa có thông tin'}</span></p>
-                                                        <p>Quốc tịch:<span className={(etourCustomer && cleanString(etourCustomer.nationality) !== cleanString(passportCustomer.nationality)) || !etourCustomer ? "text-red-600" : ""}>&nbsp;{passportCustomer.nationality || 'Chưa có thông tin'}</span></p>
-                                                        <p>Số Passport:<span className={(etourCustomer && etourCustomer.documentNumber !== passportCustomer.passportNo) || !etourCustomer ? "text-red-600" : ""}>&nbsp;{passportCustomer.passportNo}</span></p>
-                                                        <p>Ngày sinh:<span className={(etourCustomer && formatDate(etourCustomer.dateOfBirth) !== formatDate(passportCustomer.dateOfBirth)) || !etourCustomer ? "text-red-600" : ""}>&nbsp;{formatDate(passportCustomer.dateOfBirth)}</span></p>
-                                                        <p>Ngày cấp:<span className={(etourCustomer && formatDate(etourCustomer.issueDate) !== formatDate(passportCustomer.dateOfIssue)) || !etourCustomer ? "text-red-600" : ""}>&nbsp;{formatDate(passportCustomer.dateOfIssue)}</span></p>
-                                                        <p>Ngày hết hạn:<span className={(etourCustomer && formatDate(etourCustomer.expireDate) !== formatDate(passportCustomer.dateOfExpiry)) || !etourCustomer ? "text-red-600" : ""}>&nbsp;{formatDate(passportCustomer.dateOfExpiry)}</span></p>
-                                                    </div>
+                        <>
+                            {mergedCustomers.length > 0 ? (
+                                mergedCustomers.map((customerPair, index) => {
+                                    const etourCustomer = customerPair.bookingCustomer;
+                                    const passportCustomer = customerPair.passportCustomer;
+
+                                    return (
+                                        <div key={index} className="p-4 rounded-2xl grid grid-cols-2 gap-4 mobile:flex mobile:flex-col">
+                                            <div>
+                                                {etourCustomer ? (
+                                                    <>
+                                                        <div className='p-4 rounded-xl border-2 border-solid'>
+                                                            <p className='font-bold'>Họ tên:
+                                                                <span className={(passportCustomer && cleanString(etourCustomer.fullName) !== cleanString(passportCustomer.fullName)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{etourCustomer.fullName}
+                                                                </span>
+                                                            </p>
+                                                            <p>Giới tính:
+                                                                <span className={(passportCustomer && cleanString(etourCustomer.gender) !== cleanString(formatGender(passportCustomer.sex))) ? "text-red-600" : ""}>
+                                                                    &nbsp;{etourCustomer.gender}
+                                                                </span>
+                                                            </p>
+                                                            <p>Nơi sinh:
+                                                                <span className={(passportCustomer && cleanString(etourCustomer.birthPlace) !== cleanString(passportCustomer.placeOfBirth)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{etourCustomer.birthPlace}
+                                                                </span>
+                                                            </p>
+                                                            <p>Quốc tịch:
+                                                                <span className={(passportCustomer && cleanString(etourCustomer.nationality) !== cleanString(passportCustomer.nationality)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{etourCustomer.nationality}
+                                                                </span>
+                                                            </p>
+                                                            <p className='font-bold'>Số Passport:
+                                                                <span className={(passportCustomer && etourCustomer.documentNumber !== passportCustomer.passportNo) ? "text-red-600" : ""}>
+                                                                    &nbsp;{etourCustomer.documentNumber}
+                                                                </span>
+                                                            </p>
+                                                            <p>Ngày sinh:
+                                                                <span className={(passportCustomer && formatDate(etourCustomer.dateOfBirth) !== formatDate(passportCustomer.dateOfBirth)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{formatDate(etourCustomer.dateOfBirth)}
+                                                                </span>
+                                                            </p>
+                                                            <p>Ngày cấp:
+                                                                <span className={(passportCustomer && formatDate(etourCustomer.issueDate) !== formatDate(passportCustomer.dateOfIssue)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{formatDate(etourCustomer.issueDate)}
+                                                                </span>
+                                                            </p>
+                                                            <p>Ngày hết hạn:
+                                                                <span className={(passportCustomer && formatDate(etourCustomer.expireDate) !== formatDate(passportCustomer.dateOfExpiry)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{formatDate(etourCustomer.expireDate)}
+                                                                </span>
+                                                            </p>
+                                                        </div>
+                                                    </>
                                                 ) : (
-                                                    <div>
-                                                        <p>Họ tên:<span>&nbsp;Chưa có thông tin</span></p>
-                                                        <p>Giới tính:<span>&nbsp;Chưa có thông tin</span></p>
-                                                        <p>Nơi sinh:<span>&nbsp;Chưa có thông tin</span></p>
-                                                        <p>Quốc tịch:<span>&nbsp;Chưa có thông tin</span></p>
-                                                        <p>Số Passport:<span>&nbsp;Chưa có thông tin</span></p>
-                                                        <p>Ngày sinh:<span>&nbsp;Chưa có thông tin</span></p>
-                                                        <p>Ngày cấp:<span>&nbsp;Chưa có thông tin</span></p>
-                                                        <p>Ngày hết hạn:<span>&nbsp;Chưa có thông tin</span></p>
+                                                    <div className='p-4 rounded-xl border-2 border-solid'>
+                                                        <p>Họ tên: Chưa có thông tin</p>
+                                                        <p>Giới tính: Chưa có thông tin</p>
+                                                        <p>Nơi sinh: Chưa có thông tin</p>
+                                                        <p>Quốc tịch: Chưa có thông tin</p>
+                                                        <p>Số Passport: Chưa có thông tin</p>
+                                                        <p>Ngày sinh: Chưa có thông tin</p>
+                                                        <p>Ngày cấp: Chưa có thông tin</p>
+                                                        <p>Ngày hết hạn: Chưa có thông tin</p>
                                                     </div>
                                                 )}
                                             </div>
-                                        );
-                                    })
-                                ) : (
-                                    <div className="flex justify-center items-center mobile:flex-col py-4">
-                                        <p className='font-semibold text-balance text-center'>Không tìm thấy khách hàng</p>
-                                        <UserRoundX className='ml-2 w-6 mobile:mt-2' />
-                                    </div>
-                                )}
-                            </>
-                        )}
+                                            <div className='hidden mobile:divider'></div>
+                                            <div>
+                                                {passportCustomer ? (
+                                                    <div className='bg-yellow-200 p-4 rounded-xl'>
+                                                        <p className='font-bold'>Họ tên:
+                                                            <span className={(etourCustomer && cleanString(etourCustomer.fullName) !== cleanString(passportCustomer.fullName)) ? "text-red-600" : ""}>
+                                                                &nbsp;{passportCustomer.fullName || 'Chưa có thông tin'}
+                                                            </span>
+                                                        </p>
+                                                        <p>Giới tính:
+                                                            <span className={(etourCustomer && cleanString(etourCustomer.gender) !== cleanString(formatGender(passportCustomer.sex))) ? "text-red-600" : ""}>
+                                                                &nbsp;{formatGender(passportCustomer.sex) || 'Chưa có thông tin'}
+                                                            </span>
+                                                        </p>
+                                                        <p>Nơi sinh:
+                                                            <span className={(etourCustomer && cleanString(etourCustomer.birthPlace) !== cleanString(passportCustomer.placeOfBirth)) ? "text-red-600" : ""}>
+                                                                &nbsp;{passportCustomer.placeOfBirth || 'Chưa có thông tin'}
+                                                            </span>
+                                                        </p>
+                                                        <p>Quốc tịch:
+                                                            <span className={(etourCustomer && cleanString(etourCustomer.nationality) !== cleanString(passportCustomer.nationality)) ? "text-red-600" : ""}>
+                                                                &nbsp;{passportCustomer.nationality || 'Chưa có thông tin'}
+                                                            </span>
+                                                        </p>
+                                                        <p className='font-bold'>Số Passport:
+                                                            <span className={(etourCustomer && etourCustomer.documentNumber !== passportCustomer.passportNo) ? "text-red-600" : ""}>
+                                                                &nbsp;{passportCustomer.passportNo || 'Chưa có thông tin'}
+                                                            </span>
+                                                        </p>
+                                                        <p>Ngày sinh:
+                                                            <span className={(etourCustomer && formatDate(etourCustomer.dateOfBirth) !== formatDate(passportCustomer.dateOfBirth)) ? "text-red-600" : ""}>
+                                                                &nbsp;{formatDate(passportCustomer.dateOfBirth) || 'Chưa có thông tin'}
+                                                            </span>
+                                                        </p>
+                                                        <p>Ngày cấp:
+                                                            <span className={(etourCustomer && formatDate(etourCustomer.issueDate) !== formatDate(passportCustomer.dateOfIssue)) ? "text-red-600" : ""}>
+                                                                &nbsp;{formatDate(passportCustomer.dateOfIssue) || 'Chưa có thông tin'}
+                                                            </span>
+                                                        </p>
+                                                        <p>Ngày hết hạn:
+                                                            <span className={(etourCustomer && formatDate(etourCustomer.expireDate) !== formatDate(passportCustomer.dateOfExpiry)) ? "text-red-600" : ""}>
+                                                                &nbsp;{formatDate(passportCustomer.dateOfExpiry) || 'Chưa có thông tin'}
+                                                            </span>
+                                                        </p>
+                                                    </div>
+                                                ) : (
+                                                    <div className='bg-yellow-200 p-4 rounded-xl'>
+                                                        <p>Họ tên: Chưa có thông tin</p>
+                                                        <p>Giới tính: Chưa có thông tin</p>
+                                                        <p>Nơi sinh: Chưa có thông tin</p>
+                                                        <p>Quốc tịch: Chưa có thông tin</p>
+                                                        <p>Số Passport: Chưa có thông tin</p>
+                                                        <p>Ngày sinh: Chưa có thông tin</p>
+                                                        <p>Ngày cấp: Chưa có thông tin</p>
+                                                        <p>Ngày hết hạn: Chưa có thông tin</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <div className="flex justify-center items-center mobile:flex-col py-4">
+                                    <p className='font-semibold text-balance text-center'>Không tìm thấy khách hàng</p>
+                                    <UserRoundX className='ml-2 w-6 mobile:mt-2' />
+                                </div>
+                            )}
+                        </>
                     </div>
                 </div>
             </div>
