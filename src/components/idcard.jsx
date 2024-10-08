@@ -2,13 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Frown, Smile, UserRoundX } from 'lucide-react';
-import not_found_user from './lotties/not_found_user'
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const IdCardRead = () => {
     // customer state
     const [customersEtour, setCustomersEtour] = useState([]);
     const [customersIdCard, setCustomersIdCard] = useState([]);
+    const [listCustomers, setListCustomers] = useState([]);
     const [totalGuest, setTotalGuest] = useState(0);
 
     const [mergedCustomers, setMergedCustomers] = useState([]);
@@ -30,9 +30,8 @@ const IdCardRead = () => {
     const [errorIdCard, setErrorIdCard] = useState(null);
 
     // search state
-    const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [customersPerPage] = useState(10);
+    const customersPerPage = 10;
 
     // image modal state
     const [selectedImage, setSelectedImage] = useState(null);
@@ -141,51 +140,71 @@ const IdCardRead = () => {
     }, [fileArray]);
 
     useEffect(() => {
-        console.log("Booking ID: ", bookingId);
-
         if (!bookingId) return;
-
         let isMounted = true;
-
         const getListCustomers = async () => {
-            console.log("Calling API...");
             try {
                 const response = await axios.get(`http://108.108.110.73:1212/api/Customers/get-list-customers-by-bookingId/${bookingId}`);
-
                 if (isMounted) {
-                    console.log("API response: ", response.data);
-                    setCustomersIdCard(response.data.customerBooking);
+                    setListCustomers(response.data.customerBooking);
                 }
             } catch (err) {
-                console.error("API Error: ", err);
                 setError('Đã xảy ra lỗi khi tải dữ liệu khách hàng.');
             } finally {
                 setLoading(false);
             }
         };
-
         getListCustomers();
-
         return () => {
-            console.log("Cleaning up...");
             isMounted = false;
         };
     }, [bookingId]);
 
+    //#region Merge customers
     useEffect(() => {
-        if (customersEtour.length > 0 || customersIdCard.length > 0) {
-            const mergedData = customersEtour.map(etourCustomer => {
-                const matchedIdCardCustomer = customersIdCard.find(
+        if (customersEtour.length > 0 || listCustomers.length > 0 || customersIdCard.length > 0) {
+            let updatedListCustomers = [...listCustomers];
+            let mergedData = [];
+            customersIdCard.forEach(idCardCustomer => {
+                const indexInListCustomers = updatedListCustomers.findIndex(
+                    customer => customer.idCardNo === idCardCustomer.idCardNo
+                );
+
+                if (indexInListCustomers !== -1) {
+                    updatedListCustomers[indexInListCustomers] = {
+                        ...updatedListCustomers[indexInListCustomers],
+                        ...idCardCustomer
+                    };
+                } else {
+                    updatedListCustomers.push(idCardCustomer);
+                }
+            });
+            customersEtour.forEach(etourCustomer => {
+                const matchedIdCardCustomer = updatedListCustomers.find(
                     idCardCustomer => idCardCustomer.idCardNo === etourCustomer.documentNumber
                 );
-                return {
+
+                mergedData.push({
                     bookingCustomer: etourCustomer,
                     idCardCustomer: matchedIdCardCustomer || null,
-                };
+                });
+            });
+            const unmatchedPassportCustomers = updatedListCustomers.filter(
+                idCardCustomer => !customersEtour.some(
+                    etourCustomer => etourCustomer.documentNumber === idCardCustomer.idCardNo
+                )
+            );
+            unmatchedPassportCustomers.forEach(idCardCustomer => {
+                mergedData.push({
+                    bookingCustomer: null,
+                    idCardCustomer: idCardCustomer,
+                });
             });
             setMergedCustomers(mergedData);
         }
-    }, [customersEtour, customersIdCard]);
+    }, [customersEtour, listCustomers, customersIdCard]);
+
+    //#endregion
     //#endregion
 
     //#region Save API
@@ -310,40 +329,47 @@ const IdCardRead = () => {
     };
     //#endregion
 
-    //#region copy to clipboard
+    //#region Delete object
+    const handleDeleteObject = (idCardNo) => {
+        const updatedMergedCustomers = mergedCustomers.map(customer => {
+            if (customer.idCardCustomer?.idCardNo === idCardNo) {
+                return { ...customer, idCardCustomer: null };
+            }
+            return customer;
+        });
+
+        setMergedCustomers(updatedMergedCustomers);
+    };
+
+    //#endregion
+
+    //#region Sending JSON Data
     const handleCopyToClipboard = (event) => {
         event.preventDefault();
-        const idCardData = customersIdCard.map((passportCustomer) => {
-            const normalizedIdCardNo = passportCustomer.idCardNo?.trim().toUpperCase();
 
-            const matchingMember = customersEtour.find((member) => {
-                const normalizedDocumentNumber = member.documentNumber?.trim().toUpperCase();
-
-                return normalizedDocumentNumber === normalizedIdCardNo;
-            });
-
+        const idCardData = mergedCustomers.map(({ idCardCustomer }) => {
             return {
-                fullName: passportCustomer.fullName || '',
-                nationality: passportCustomer.nationality || '',
-                dateOfBirth: passportCustomer.dateOfBirth || '',
-                sex: passportCustomer.sex || '',
-                dateOfIssue: passportCustomer.dateOfIssue || '',
-                placeOfIssue: passportCustomer.placeOfIssue || '',
-                placeOfBirth: passportCustomer.placeOfBirth || '',
-                idCardNo: passportCustomer.idCardNo || '',
-                dateOfExpiry: passportCustomer.dateOfExpiry || '',
-                issuingAuthority: passportCustomer.issuingAuthority || '',
-
-                memberId: matchingMember ? matchingMember.memberId : 'Chưa có thông tin',
-                bookingId: bookingId || 'Chưa có thông tin',
+                fullName: idCardCustomer?.fullName || '',
+                nationality: idCardCustomer?.nationality || '',
+                dateOfBirth: idCardCustomer?.dateOfBirth || '',
+                sex: idCardCustomer?.sex || '',
+                dateOfIssue: idCardCustomer?.dateOfIssue || '',
+                placeOfIssue: idCardCustomer?.placeOfIssue || '',
+                idCardNo: idCardCustomer?.idCardNo || '',
+                placeOfBirth: idCardCustomer?.placeOfBirth || '',
+                dateOfExpiry: idCardCustomer?.dateOfExpiry || '',
+                issuingAuthority: idCardCustomer?.issuingAuthority || '',
             };
         });
+
         const message = { copyAll: JSON.stringify(idCardData, null, 2) };
 
+        alert('Dữ liệu đã được gửi đến hệ thống eTour!');
         console.log("Dữ liệu JSON gửi đi: ", idCardData);
 
         window.parent.postMessage(message, '*');
     };
+
     //#endregion
 
 
@@ -359,10 +385,7 @@ const IdCardRead = () => {
     const indexOfLastCustomer = currentPage * customersPerPage;
     const indexOfFirstCustomer = indexOfLastCustomer - customersPerPage;
 
-    const currentCustomersEtours = customersEtour.slice(indexOfFirstCustomer, indexOfLastCustomer);
-    const currentCustomersIdCards = customersIdCard.slice(indexOfFirstCustomer, indexOfLastCustomer);
-
-    const totalPages = Math.ceil(customersIdCard.length / customersPerPage);
+    const totalPages = Math.ceil(mergedCustomers.length / customersPerPage);
 
     const handlePageChange = (pageNumber) => {
         setCurrentPage(pageNumber);
@@ -427,210 +450,227 @@ const IdCardRead = () => {
                 </div>
             </div>
             <div className="w-full justify-center py-6">
-                <div className="grid grid-cols-2 gap-4 mobile:flex mobile:flex-col">
-
-                    {/* Cột eTour */}
+                <div className="gap-4 mobile:flex mobile:flex-col">
                     <div className="mobile:p-4">
-                        <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách eTour</h3>
+                        <div className='grid grid-cols-2 mobile:hidden'>
+                            <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách eTour</h3>
+                            <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách CCCD/CMND</h3>
+                        </div>
                         <div className="flex justify-end mb-3">
-                            <p className="text-lg mobile:text-base">Tổng số khách trong eTour: <span className="font-semibold">{totalGuest}</span></p>
+                            <p className="text-lg mobile:text-base">Tổng số khách eTour: <span className="font-semibold">{totalGuest} khách</span></p>
                         </div>
-                        {loading ? (
-                            <div className="flex flex-col justify-center items-center mobile:flex-col">
-                                <span className="loading loading-infinity w-28"></span>
-                                <p className='font-semibold flex justify-center items-center text-center'>
-                                    Đang tải dữ liệu khách hàng...
-                                    <Smile className='ml-2 w-6 mobile:mt-2' />
-                                </p>
-                            </div>
-                        ) : error ? (
-                            <div className="flex justify-center items-center mobile:flex-col">
-                                <p className='font-semibold text-balance text-center'>Đã có lỗi xảy ra ở phía hệ thống, vui lòng thử lại sau</p>
-                                <Frown className='ml-2 w-6 mobile:mt-2' />
-                            </div>
-                        ) : (
-                            <>
-                                {Math.max(currentCustomersEtours.length, currentCustomersIdCards.length) > 0 ? (
-                                    Array.from({ length: Math.max(currentCustomersEtours.length, currentCustomersIdCards.length) }).map((_, index) => (
-                                        <div key={index} className="border mb-4 p-4 bg-yellow-200 rounded-2xl">
-                                            <p><strong>Khách hàng {index + 1 + (currentPage - 1) * customersPerPage}</strong></p>
-                                            {currentCustomersEtours[index] ? (
-                                                <>
-                                                    <p>Họ tên: {currentCustomersEtours[index].fullName}</p>
-                                                    <p>Giới tính: {currentCustomersEtours[index].gender}</p>
-                                                    <p>Nơi sinh: {currentCustomersEtours[index].birthPlace}</p>
-                                                    <p>Quốc tịch: {currentCustomersEtours[index].nationality}</p>
-                                                    <p>Số CCCD/CMND: {currentCustomersEtours[index].documentNumber}</p>
-                                                    <p>Ngày sinh: {formatDate(currentCustomersEtours[index].dateOfBirth)}</p>
-                                                    <p>Ngày cấp: {formatDate(currentCustomersEtours[index].issueDate)}</p>
-                                                    <p>Ngày hết hạn: {formatDate(currentCustomersEtours[index].expireDate)}</p>
-                                                </>
-                                            ) : (
-                                                <div>
-                                                    <p>
-                                                        Họ tên:
-                                                        <span>
-                                                            &nbsp;Chưa có thông tin
-                                                        </span>
-                                                    </p>
-                                                    <p>
-                                                        Giới tính:
-                                                        <span>
-                                                            &nbsp;Chưa có thông tin
-                                                        </span>
-                                                    </p>
-                                                    <p>
-                                                        Nơi sinh:
-                                                        <span>
-                                                            &nbsp;Chưa có thông tin
-                                                        </span>
-                                                    </p>
-                                                    <p>
-                                                        Quốc tịch:
-                                                        <span>
-                                                            &nbsp;Chưa có thông tin
-                                                        </span>
-                                                    </p>
-                                                    <p>
-                                                        Số Passport:
-                                                        <span>
-                                                            &nbsp;Chưa có thông tin
-                                                        </span>
-                                                    </p>
-                                                    <p>
-                                                        Ngày sinh:
-                                                        <span>
-                                                            &nbsp;Chưa có thông tin
-                                                        </span>
-                                                    </p>
-                                                    <p>
-                                                        Ngày cấp:
-                                                        <span>
-                                                            &nbsp;Chưa có thông tin
-                                                        </span>
-                                                    </p>
-                                                    <p>
-                                                        Ngày hết hạn:
-                                                        <span>
-                                                            &nbsp;Chưa có thông tin
-                                                        </span>
-                                                    </p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))
-                                ) : (
-                                    <div className="flex justify-center items-center mobile:flex-col py-4">
-                                        <p className='font-semibold text-balance text-center'>
-                                            Không tìm thấy khách hàng nào từ eTour
-                                        </p>
-                                        <UserRoundX className='ml-2 w-6 mobile:mt-2' />
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
-
-                    <div className='hidden mobile:divider mobile:px-4'></div>
-
-                    <div className="mobile:p-4">
-                        <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách CCCD/CMND</h3>
-                        <div className='flex justify-end mb-3 mobile:text-base'>
-                            <p className='text-lg'>Tổng số khách nhập từ CCCD/CMND: <span className='font-semibold'>{totalGuestIdCards || customersIdCard.length}</span></p>
-                        </div>
-                        {loadingIdCards ? (
-                            <div className="flex flex-col justify-center items-center">
-                                <div className="radial-progress" style={{ "--value": progress }} role="progressbar">{progress}%</div>
-                                <p className='font-semibold flex justify-center items-center text-center mt-4'>Đang tải dữ liệu khách hàng...</p>
-                            </div>
-                        ) : errorIdCard ? (
-                            <div className="flex justify-center items-center mobile:flex-col">
-                                <p className='font-semibold flex justify-center items-center text-center'>Đã có lỗi xảy ra ở phía hệ thống, vui lòng thử lại sau</p>
-                                <Frown className='ml-2 w-6 mobile:mt-2' />
-                            </div>
-                        ) : (
-                            <>
-                                {customersIdCard.length > 0 ? (
-                                    Array.from({ length: Math.max(currentCustomersEtours.length, customersIdCard.length) }).map((_, index) => {
-                                        const customerPair = mergedCustomers[index] || {};
-                                        const etourCustomer = customerPair.bookingCustomer;
-                                        const idCardCustomer = customerPair.idCardCustomer;
-                                        return (
-                                            <div key={index} className="border mb-4 p-4 rounded-2xl">
-                                                <p><strong>Khách hàng {index + 1 + (currentPage - 1) * customersPerPage}</strong></p>
-                                                {idCardCustomer ? (
-                                                    <div>
-                                                        <p>
-                                                            Họ tên:
-                                                            <span className={(etourCustomer && cleanString(etourCustomer.fullName) !== cleanString(idCardCustomer.fullName)) || !etourCustomer ? "text-red-600" : ""}>
-                                                                &nbsp;{idCardCustomer.fullName}
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Giới tính:
-                                                            <span className={(etourCustomer && cleanString(etourCustomer.gender) !== cleanString(formatGender(idCardCustomer.sex))) || !etourCustomer ? "text-red-600" : ""}>
-                                                                &nbsp;{formatGender(idCardCustomer.sex)}
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Nơi sinh:
-                                                            <span className={(etourCustomer && cleanString(etourCustomer.birthPlace) !== cleanString(idCardCustomer.placeOfBirth)) || !etourCustomer ? "text-red-600" : ""}>
-                                                                &nbsp;{idCardCustomer.placeOfBirth || 'Chưa có thông tin'}
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Quốc tịch:
-                                                            <span className={(etourCustomer && cleanString(etourCustomer.nationality) !== cleanString(idCardCustomer.nationality)) || !etourCustomer ? "text-red-600" : ""}>
-                                                                &nbsp;{idCardCustomer.nationality || 'Chưa có thông tin'}
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Số CCCD/CMND:
-                                                            <span className={(etourCustomer && etourCustomer.documentNumber !== idCardCustomer.idCardNo) || !etourCustomer ? "text-red-600" : ""}>
-                                                                &nbsp;{idCardCustomer.idCardNo || 'Chưa có thông tin'}
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Ngày sinh:
-                                                            <span className={(etourCustomer && formatDate(etourCustomer.dateOfBirth) !== formatDate(idCardCustomer.dateOfBirth)) || !etourCustomer ? "text-red-600" : ""}>
-                                                                &nbsp;{formatDate(idCardCustomer.dateOfBirth || 'Chưa có thông tin')}
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Ngày cấp:
-                                                            <span className={(etourCustomer && formatDate(etourCustomer.issueDate) !== formatDate(idCardCustomer.dateOfIssue)) || !etourCustomer ? "text-red-600" : ""}>
-                                                                &nbsp;{formatDate(idCardCustomer.dateOfIssue || 'Chưa có thông tin')}
-                                                            </span>
-                                                        </p>
-                                                        <p>
-                                                            Ngày hết hạn:
-                                                            <span className={(etourCustomer && formatDate(etourCustomer.expireDate) !== formatDate(idCardCustomer.dateOfExpiry)) || !etourCustomer ? "text-red-600" : ""}>
-                                                                &nbsp;{formatDate(idCardCustomer.dateOfExpiry || 'Chưa có thông tin')}
-                                                            </span>
-                                                        </p>
-                                                    </div>
+                        {mergedCustomers.length > 0 ? (
+                            mergedCustomers.map((customerPair, index) => {
+                                const etourCustomer = customerPair.bookingCustomer;
+                                const idCardCustomer = customerPair.idCardCustomer;
+                                return (
+                                    <div key={index} className="p-4 rounded-2xl grid grid-cols-2 gap-4 mobile:flex mobile:flex-col">
+                                        {loading ? (
+                                            <div className="flex flex-col justify-center items-center">
+                                                <div className="radial-progress" style={{ "--value": progress }} role="progressbar">{progress}%</div>
+                                                <p className='font-semibold flex justify-center items-center text-center mt-4'>Đang tải toàn bộ dữ liệu khách hàng...</p>
+                                            </div>
+                                        ) : error ? (
+                                            <div className="flex justify-center items-center mobile:flex-col">
+                                                <p className='font-semibold flex justify-center items-center text-center'>Đã có lỗi xảy ra ở phía hệ thống, vui lòng thử lại sau</p>
+                                                <Frown className='ml-2 w-6 mobile:mt-2' />
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                {etourCustomer ? (
+                                                    <>
+                                                        <div className='p-4 rounded-xl border-2 border-solid'>
+                                                            <p className='font-bold'>Họ tên:
+                                                                <span className={(idCardCustomer && cleanString(etourCustomer.fullName) !== cleanString(idCardCustomer.fullName)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{etourCustomer.fullName}
+                                                                </span>
+                                                            </p>
+                                                            <p>Giới tính:
+                                                                <span className={(idCardCustomer && cleanString(etourCustomer.gender) !== cleanString(formatGender(idCardCustomer.sex))) ? "text-red-600" : ""}>
+                                                                    &nbsp;{etourCustomer.gender}
+                                                                </span>
+                                                            </p>
+                                                            <p>Nơi sinh:
+                                                                <span className={(idCardCustomer && cleanString(etourCustomer.birthPlace) !== cleanString(idCardCustomer.placeOfBirth)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{etourCustomer.birthPlace}
+                                                                </span>
+                                                            </p>
+                                                            <p>Quốc tịch:
+                                                                <span className={(idCardCustomer && cleanString(etourCustomer.nationality) !== cleanString(idCardCustomer.nationality)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{etourCustomer.nationality}
+                                                                </span>
+                                                            </p>
+                                                            <p className='font-bold'>Số CCCD/CMND:
+                                                                <span className={(idCardCustomer && etourCustomer.documentNumber !== idCardCustomer.idCardNo) ? "text-red-600" : ""}>
+                                                                    &nbsp;{etourCustomer.documentNumber}
+                                                                </span>
+                                                            </p>
+                                                            <p>Ngày sinh:
+                                                                <span className={(idCardCustomer && formatDate(etourCustomer.dateOfBirth) !== formatDate(idCardCustomer.dateOfBirth)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{formatDate(etourCustomer.dateOfBirth)}
+                                                                </span>
+                                                            </p>
+                                                            <p>Ngày cấp:
+                                                                <span className={(idCardCustomer && formatDate(etourCustomer.issueDate) !== formatDate(idCardCustomer.dateOfIssue)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{formatDate(etourCustomer.issueDate)}
+                                                                </span>
+                                                            </p>
+                                                            <p>Ngày hết hạn:
+                                                                <span className={(idCardCustomer && formatDate(etourCustomer.expireDate) !== formatDate(idCardCustomer.dateOfExpiry)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{formatDate(etourCustomer.expireDate)}
+                                                                </span>
+                                                            </p>
+                                                        </div>
+                                                    </>
                                                 ) : (
-                                                    <div>
-                                                        <p>Họ tên:<span>&nbsp;Chưa có thông tin</span></p>
-                                                        <p>Giới tính:<span>&nbsp;Chưa có thông tin</span></p>
-                                                        <p>Nơi sinh:<span>&nbsp;Chưa có thông tin</span></p>
-                                                        <p>Quốc tịch:<span>&nbsp;Chưa có thông tin</span></p>
-                                                        <p>Số Passport:<span>&nbsp;Chưa có thông tin</span></p>
-                                                        <p>Ngày sinh:<span>&nbsp;Chưa có thông tin</span></p>
-                                                        <p>Ngày cấp:<span>&nbsp;Chưa có thông tin</span></p>
-                                                        <p>Ngày hết hạn:<span>&nbsp;Chưa có thông tin</span></p>
+                                                    <div className='p-4 rounded-xl border-2 border-solid'>
+                                                        <p>Họ tên: Chưa có thông tin</p>
+                                                        <p>Giới tính: Chưa có thông tin</p>
+                                                        <p>Nơi sinh: Chưa có thông tin</p>
+                                                        <p>Quốc tịch: Chưa có thông tin</p>
+                                                        <p>Số CCCD/CMND: Chưa có thông tin</p>
+                                                        <p>Ngày sinh: Chưa có thông tin</p>
+                                                        <p>Ngày cấp: Chưa có thông tin</p>
+                                                        <p>Ngày hết hạn: Chưa có thông tin</p>
                                                     </div>
                                                 )}
                                             </div>
-                                        );
-                                    })
-                                ) : (
-                                    <div className="flex justify-center items-center mobile:flex-col py-4">
-                                        <p className='font-semibold text-balance text-center'>Không tìm thấy khách hàng</p>
-                                        <UserRoundX className='ml-2 w-6 mobile:mt-2' />
+                                        )}
+                                        {loadingIdCards ? (
+                                            <div className="flex flex-col justify-center items-center">
+                                                <div className="radial-progress" style={{ "--value": progress }} role="progressbar">{progress}%</div>
+                                                <p className='font-semibold flex justify-center items-center text-center mt-4'>Đang tải toàn bộ dữ liệu khách hàng...</p>
+                                            </div>
+                                        ) : errorIdCard ? (
+                                            <div className="flex justify-center items-center mobile:flex-col">
+                                                <p className='font-semibold flex justify-center items-center text-center'>Đã có lỗi xảy ra ở phía hệ thống, vui lòng thử lại sau</p>
+                                                <Frown className='ml-2 w-6 mobile:mt-2' />
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                {idCardCustomer ? (
+                                                    <div>
+
+                                                        <div className='bg-yellow-200 p-4 rounded-xl'>
+
+                                                            <p className='font-bold'>Họ tên:
+                                                                <span className={(etourCustomer && cleanString(etourCustomer.fullName) !== cleanString(idCardCustomer.fullName)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{idCardCustomer.fullName || 'Chưa có thông tin'}
+                                                                </span>
+                                                            </p>
+                                                            <p>Giới tính:
+                                                                <span className={(etourCustomer && cleanString(etourCustomer.gender) !== cleanString(formatGender(idCardCustomer.sex))) ? "text-red-600" : ""}>
+                                                                    &nbsp;{formatGender(idCardCustomer.sex) || 'Chưa có thông tin'}
+                                                                </span>
+                                                            </p>
+                                                            <p>Nơi sinh:
+                                                                <span className={(etourCustomer && cleanString(etourCustomer.birthPlace) !== cleanString(idCardCustomer.placeOfBirth)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{idCardCustomer.placeOfBirth || 'Chưa có thông tin'}
+                                                                </span>
+                                                            </p>
+                                                            <p>Quốc tịch:
+                                                                <span className={(etourCustomer && cleanString(etourCustomer.nationality) !== cleanString(idCardCustomer.nationality)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{idCardCustomer.nationality || 'Chưa có thông tin'}
+                                                                </span>
+                                                            </p>
+                                                            <p className='font-bold'>Số CCCD/CMND:
+                                                                <span className={(etourCustomer && etourCustomer.documentNumber !== idCardCustomer.idCardNo) ? "text-red-600" : ""}>
+                                                                    &nbsp;{idCardCustomer.idCardNo || 'Chưa có thông tin'}
+                                                                </span>
+                                                            </p>
+                                                            <p>Ngày sinh:
+                                                                <span className={(etourCustomer && formatDate(etourCustomer.dateOfBirth) !== formatDate(idCardCustomer.dateOfBirth)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{formatDate(idCardCustomer.dateOfBirth) || 'Chưa có thông tin'}
+                                                                </span>
+                                                            </p>
+                                                            <p>Ngày cấp:
+                                                                <span className={(etourCustomer && formatDate(etourCustomer.issueDate) !== formatDate(idCardCustomer.dateOfIssue)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{formatDate(idCardCustomer.dateOfIssue) || 'Chưa có thông tin'}
+                                                                </span>
+                                                            </p>
+                                                            <p>Ngày hết hạn:
+                                                                <span className={(etourCustomer && formatDate(etourCustomer.expireDate) !== formatDate(idCardCustomer.dateOfExpiry)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{formatDate(idCardCustomer.dateOfExpiry) || 'Chưa có thông tin'}
+                                                                </span>
+                                                            </p>
+                                                            <div className='flex justify-end'>
+                                                                <button
+                                                                    className="group relative flex h-12 w-12 flex-col items-center justify-center overflow-hidden rounded-xl bg-red-400 hover:bg-red-600"
+                                                                    onClick={() => handleDeleteObject(idCardCustomer.idCardNo)}
+                                                                >
+                                                                    <svg
+                                                                        viewBox="0 0 1.625 1.625"
+                                                                        className="absolute -top-7 fill-white delay-100 group-hover:top-6 group-hover:animate-[spin_1.4s] group-hover:duration-1000"
+                                                                        height="10"
+                                                                        width="10"
+                                                                    >
+                                                                        <path
+                                                                            d="M.471 1.024v-.52a.1.1 0 0 0-.098.098v.618c0 .054.044.098.098.098h.487a.1.1 0 0 0 .098-.099h-.39c-.107 0-.195 0-.195-.195"
+                                                                        ></path>
+                                                                        <path
+                                                                            d="M1.219.601h-.163A.1.1 0 0 1 .959.504V.341A.033.033 0 0 0 .926.309h-.26a.1.1 0 0 0-.098.098v.618c0 .054.044.098.098.098h.487a.1.1 0 0 0 .098-.099v-.39a.033.033 0 0 0-.032-.033"
+                                                                        ></path>
+                                                                        <path
+                                                                            d="m1.245.465-.15-.15a.02.02 0 0 0-.016-.006.023.023 0 0 0-.023.022v.108c0 .036.029.065.065.065h.107a.023.023 0 0 0 .023-.023.02.02 0 0 0-.007-.016"
+                                                                        ></path>
+                                                                    </svg>
+                                                                    <svg
+                                                                        width="16"
+                                                                        fill="none"
+                                                                        viewBox="0 0 39 7"
+                                                                        className="origin-right duration-500 group-hover:rotate-90"
+                                                                    >
+                                                                        <line strokeWidth="4" stroke="white" y2="5" x2="39" y1="5"></line>
+                                                                        <line
+                                                                            strokeWidth="3"
+                                                                            stroke="white"
+                                                                            y2="1.5"
+                                                                            x2="26.0357"
+                                                                            y1="1.5"
+                                                                            x1="12"
+                                                                        ></line>
+                                                                    </svg>
+                                                                    <svg width="12" fill="none" viewBox="0 0 33 39" className="">
+                                                                        <mask fill="white" id="path-1-inside-1_8_19">
+                                                                            <path
+                                                                                d="M0 0H33V35C33 37.2091 31.2091 39 29 39H4C1.79086 39 0 37.2091 0 35V0Z"
+                                                                            ></path>
+                                                                        </mask>
+                                                                        <path
+                                                                            mask="url(#path-1-inside-1_8_19)"
+                                                                            fill="white"
+                                                                            d="M0 0H33H0ZM37 35C37 39.4183 33.4183 43 29 43H4C-0.418278 43 -4 39.4183 -4 35H4H29H37ZM4 43C-0.418278 43 -4 39.4183 -4 35V0H4V35V43ZM37 0V35C37 39.4183 33.4183 43 29 43V35V0H37Z"
+                                                                        ></path>
+                                                                        <path strokeWidth="4" stroke="white" d="M12 6L12 29"></path>
+                                                                        <path strokeWidth="4" stroke="white" d="M21 6V29"></path>
+                                                                    </svg>
+                                                                </button>
+
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <div className='bg-yellow-200 p-4 rounded-xl'>
+                                                        <p>Họ tên: Chưa có thông tin</p>
+                                                        <p>Giới tính: Chưa có thông tin</p>
+                                                        <p>Nơi sinh: Chưa có thông tin</p>
+                                                        <p>Quốc tịch: Chưa có thông tin</p>
+                                                        <p>Số Passport: Chưa có thông tin</p>
+                                                        <p>Ngày sinh: Chưa có thông tin</p>
+                                                        <p>Ngày cấp: Chưa có thông tin</p>
+                                                        <p>Ngày hết hạn: Chưa có thông tin</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                            </>
+                                );
+                            })
+                        ) : (
+                            <div className="flex justify-center items-center mobile:flex-col py-4">
+                                <p className='font-semibold text-balance text-center'>Không tìm thấy khách hàng</p>
+                                <UserRoundX className='ml-2 w-6 mobile:mt-2' />
+                            </div>
                         )}
                     </div>
                 </div>
@@ -650,12 +690,25 @@ const IdCardRead = () => {
                     ))}
                 </div>
                 <div className='gap-4 flex justify-end items-center mr-4 pb-2 mobile:mx-1.5 mobile:gap-3'>
-                    <div>
-                        <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>Lưu và cập nhật eTour</button>
-                    </div>
-                    <div>
-                        <button className="btn btn-accent no-animation" onClick={handleSave}>Lưu</button>
-                    </div>
+                    {loadingIdCards ? (
+                        <>
+                            <div>
+                                <button className="btn btn-accent btn-disabled no-animation mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>Lưu và cập nhật eTour</button>
+                            </div>
+                            <div>
+                                <button className="btn btn-accent btn-disabled no-animation mobile:h-auto mobile:text-balance" onClick={handleSave}>Lưu</button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div>
+                                <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>Lưu và cập nhật eTour</button>
+                            </div>
+                            <div>
+                                <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" onClick={handleSave}>Lưu</button>
+                            </div>
+                        </>
+                    )}
                     {toastMessage && (
                         <div className={`toast toast-top toast-center z-50`}>
                             <div className={`alert ${toastType === 'success' ? 'alert-success' : 'alert-error'}`}>

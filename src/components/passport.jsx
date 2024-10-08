@@ -48,6 +48,12 @@ const PassportRead = () => {
     })
     //#endregion
 
+    //#region Route to ID Card
+    const handleButtonClickRoute = () => {
+        navigate(`/idcard-read?bookingId=${bookingId}`);
+    }
+    //#endregion
+
 
     //#region API
 
@@ -280,11 +286,7 @@ const PassportRead = () => {
     };
     //#endregion
 
-    //#region Route to ID Card
-    const handleButtonClickRoute = () => {
-        navigate(`/idcard-read?bookingId=${bookingId}`);
-    }
-    //#endregion
+
 
     //#region Picture
 
@@ -303,11 +305,6 @@ const PassportRead = () => {
     const handleImageClick = (imageUrl) => {
         setSelectedImage(imageUrl);
         document.getElementById('image_modal_checkbox').checked = true;
-    };
-
-    const handleCloseImage = (e) => {
-        document.getElementById('image-modal').close();
-        setSelectedImage(null);
     };
 
     const handleClose = () => {
