@@ -163,57 +163,44 @@ const PassportRead = () => {
 
     //#region Merge customers
     useEffect(() => {
-        // Kiểm tra nếu có dữ liệu từ mảng A, B hoặc C
         if (customersEtour.length > 0 || listCustomers.length > 0 || customersPassport.length > 0) {
-            let updatedListCustomers = [...listCustomers];  // Sao chép listCustomers (mảng B)
+            let updatedListCustomers = [...listCustomers];
             let mergedData = [];
-
-            // Bước 1: Lưu đè dữ liệu từ mảng C lên mảng B nếu có passportNo trùng
             customersPassport.forEach(passportCustomer => {
                 const indexInListCustomers = updatedListCustomers.findIndex(
                     customer => customer.passportNo === passportCustomer.passportNo
                 );
 
-                // Nếu tìm thấy khách hàng có số passport trùng, lưu đè dữ liệu
                 if (indexInListCustomers !== -1) {
                     updatedListCustomers[indexInListCustomers] = {
                         ...updatedListCustomers[indexInListCustomers],
-                        ...passportCustomer // Lưu đè dữ liệu từ mảng C lên mảng B
+                        ...passportCustomer
                     };
                 } else {
-                    // Nếu không tìm thấy khách hàng trùng trong mảng B, thêm mới từ mảng C
                     updatedListCustomers.push(passportCustomer);
                 }
             });
-
-            // Bước 2: So sánh mảng A (customersEtour) và mảng D (updatedListCustomers) và merge
             customersEtour.forEach(etourCustomer => {
                 const matchedPassportCustomer = updatedListCustomers.find(
                     passportCustomer => passportCustomer.passportNo === etourCustomer.documentNumber
                 );
 
-                // Thêm vào mergedData nếu có khách hàng trùng hoặc không
                 mergedData.push({
                     bookingCustomer: etourCustomer,
-                    passportCustomer: matchedPassportCustomer || null, // Nếu không có khách hàng trùng, passportCustomer là null
+                    passportCustomer: matchedPassportCustomer || null,
                 });
             });
-
-            // Bước 3: Thêm các khách hàng từ mảng D (updatedListCustomers) không có trong mảng A (customersEtour)
             const unmatchedPassportCustomers = updatedListCustomers.filter(
                 passportCustomer => !customersEtour.some(
                     etourCustomer => etourCustomer.documentNumber === passportCustomer.passportNo
                 )
             );
-
             unmatchedPassportCustomers.forEach(passportCustomer => {
                 mergedData.push({
-                    bookingCustomer: null, // Không có khách hàng từ etour
-                    passportCustomer: passportCustomer // Thông tin từ passport
+                    bookingCustomer: null,
+                    passportCustomer: passportCustomer,
                 });
             });
-
-            // Cập nhật mergedCustomers với dữ liệu đã xử lý
             setMergedCustomers(mergedData);
         }
     }, [customersEtour, listCustomers, customersPassport]);
@@ -384,44 +371,37 @@ const PassportRead = () => {
     //#region Sending JSON Data
     const handleCopyToClipboard = (event) => {
         event.preventDefault();
-        const passportData = customersPassport.map((passportCustomer) => {
-            const normalizedPassportNo = passportCustomer.passportNo?.trim().toUpperCase();
 
-            const matchingMember = customersEtour.find((member) => {
-                const normalizedDocumentNumber = member.documentNumber?.trim().toUpperCase();
-
-                return normalizedDocumentNumber === normalizedPassportNo;
-            });
-
+        const passportData = mergedCustomers.map(({ passportCustomer }) => {
             return {
-                fullName: passportCustomer.fullName || '',
-                nationality: passportCustomer.nationality || '',
-                dateOfBirth: passportCustomer.dateOfBirth || '',
-                sex: passportCustomer.sex || '',
-                dateOfIssue: passportCustomer.dateOfIssue || '',
-                placeOfIssue: passportCustomer.placeOfIssue || '',
-                passportNo: passportCustomer.passportNo || '',
-                placeOfBirth: passportCustomer.placeOfBirth || '',
-                dateOfExpiry: passportCustomer.dateOfExpiry || '',
-                issuingAuthority: passportCustomer.issuingAuthority || '',
-
-                memberId: matchingMember ? matchingMember.memberId : 'Chưa có thông tin',
-                bookingId: bookingId || 'Chưa có thông tin',
+                fullName: passportCustomer?.fullName || '',
+                nationality: passportCustomer?.nationality || '',
+                dateOfBirth: passportCustomer?.dateOfBirth || '',
+                sex: passportCustomer?.sex || '',
+                dateOfIssue: passportCustomer?.dateOfIssue || '',
+                placeOfIssue: passportCustomer?.placeOfIssue || '',
+                passportNo: passportCustomer?.passportNo || '',
+                placeOfBirth: passportCustomer?.placeOfBirth || '',
+                dateOfExpiry: passportCustomer?.dateOfExpiry || '',
+                issuingAuthority: passportCustomer?.issuingAuthority || '',
             };
         });
+
         const message = { copyAll: JSON.stringify(passportData, null, 2) };
 
+        alert('Dữ liệu đã được gửi đến hệ thống eTour!');
         console.log("Dữ liệu JSON gửi đi: ", passportData);
 
         window.parent.postMessage(message, '*');
     };
+
     //#endregion
 
     //#region Pagination
     const indexOfLastCustomer = currentPage * customersPerPage;
     const indexOfFirstCustomer = indexOfLastCustomer - customersPerPage;
 
-    const totalPages = Math.ceil(customersPassport.length / customersPerPage);
+    const totalPages = Math.ceil(mergedCustomers.length / customersPerPage);
 
     const handlePageChange = (pageNumber) => {
         setCurrentPage(pageNumber);
@@ -499,14 +479,23 @@ const PassportRead = () => {
                         <div className="flex justify-end mb-3">
                             <p className="text-lg mobile:text-base">Tổng số khách eTour: <span className="font-semibold">{totalGuest} khách</span></p>
                         </div>
-                        <>
-                            {mergedCustomers.length > 0 ? (
-                                mergedCustomers.map((customerPair, index) => {
-                                    const etourCustomer = customerPair.bookingCustomer;
-                                    const passportCustomer = customerPair.passportCustomer;
-
-                                    return (
-                                        <div key={index} className="p-4 rounded-2xl grid grid-cols-2 gap-4 mobile:flex mobile:flex-col">
+                        {mergedCustomers.length > 0 ? (
+                            mergedCustomers.map((customerPair, index) => {
+                                const etourCustomer = customerPair.bookingCustomer;
+                                const passportCustomer = customerPair.passportCustomer;
+                                return (
+                                    <div key={index} className="p-4 rounded-2xl grid grid-cols-2 gap-4 mobile:flex mobile:flex-col">
+                                        {loading ? (
+                                            <div className="flex flex-col justify-center items-center">
+                                                <div className="radial-progress" style={{ "--value": progress }} role="progressbar">{progress}%</div>
+                                                <p className='font-semibold flex justify-center items-center text-center mt-4'>Đang tải toàn bộ dữ liệu khách hàng...</p>
+                                            </div>
+                                        ) : error ? (
+                                            <div className="flex justify-center items-center mobile:flex-col">
+                                                <p className='font-semibold flex justify-center items-center text-center'>Đã có lỗi xảy ra ở phía hệ thống, vui lòng thử lại sau</p>
+                                                <Frown className='ml-2 w-6 mobile:mt-2' />
+                                            </div>
+                                        ) : (
                                             <div>
                                                 {etourCustomer ? (
                                                     <>
@@ -566,11 +555,24 @@ const PassportRead = () => {
                                                     </div>
                                                 )}
                                             </div>
-                                            <div className='hidden mobile:divider'></div>
+                                        )}
+                                        {loadingPassports ? (
+                                            <div className="flex flex-col justify-center items-center">
+                                                <div className="radial-progress" style={{ "--value": progress }} role="progressbar">{progress}%</div>
+                                                <p className='font-semibold flex justify-center items-center text-center mt-4'>Đang tải toàn bộ dữ liệu khách hàng...</p>
+                                            </div>
+                                        ) : errorPassport ? (
+                                            <div className="flex justify-center items-center mobile:flex-col">
+                                                <p className='font-semibold flex justify-center items-center text-center'>Đã có lỗi xảy ra ở phía hệ thống, vui lòng thử lại sau</p>
+                                                <Frown className='ml-2 w-6 mobile:mt-2' />
+                                            </div>
+                                        ) : (
                                             <div>
                                                 {passportCustomer ? (
-                                                    <>
+                                                    <div>
+
                                                         <div className='bg-yellow-200 p-4 rounded-xl'>
+
                                                             <p className='font-bold'>Họ tên:
                                                                 <span className={(etourCustomer && cleanString(etourCustomer.fullName) !== cleanString(passportCustomer.fullName)) ? "text-red-600" : ""}>
                                                                     &nbsp;{passportCustomer.fullName || 'Chưa có thông tin'}
@@ -612,12 +614,61 @@ const PassportRead = () => {
                                                                 </span>
                                                             </p>
                                                             <div className='flex justify-end'>
-                                                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-6 cursor-pointer hover:text-red-500 hover:transition-all hover:duration-300 hover:ease-in-out" onClick={() => handleDeleteObject(passportCustomer.passportNo)}>
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                                                </svg>
+                                                                <button
+                                                                    className="group relative flex h-12 w-12 flex-col items-center justify-center overflow-hidden rounded-xl bg-red-400 hover:bg-red-600"
+                                                                    onClick={() => handleDeleteObject(passportCustomer.passportNo)}
+                                                                >
+                                                                    <svg
+                                                                        viewBox="0 0 1.625 1.625"
+                                                                        className="absolute -top-7 fill-white delay-100 group-hover:top-6 group-hover:animate-[spin_1.4s] group-hover:duration-1000"
+                                                                        height="10"
+                                                                        width="10"
+                                                                    >
+                                                                        <path
+                                                                            d="M.471 1.024v-.52a.1.1 0 0 0-.098.098v.618c0 .054.044.098.098.098h.487a.1.1 0 0 0 .098-.099h-.39c-.107 0-.195 0-.195-.195"
+                                                                        ></path>
+                                                                        <path
+                                                                            d="M1.219.601h-.163A.1.1 0 0 1 .959.504V.341A.033.033 0 0 0 .926.309h-.26a.1.1 0 0 0-.098.098v.618c0 .054.044.098.098.098h.487a.1.1 0 0 0 .098-.099v-.39a.033.033 0 0 0-.032-.033"
+                                                                        ></path>
+                                                                        <path
+                                                                            d="m1.245.465-.15-.15a.02.02 0 0 0-.016-.006.023.023 0 0 0-.023.022v.108c0 .036.029.065.065.065h.107a.023.023 0 0 0 .023-.023.02.02 0 0 0-.007-.016"
+                                                                        ></path>
+                                                                    </svg>
+                                                                    <svg
+                                                                        width="16"
+                                                                        fill="none"
+                                                                        viewBox="0 0 39 7"
+                                                                        className="origin-right duration-500 group-hover:rotate-90"
+                                                                    >
+                                                                        <line strokeWidth="4" stroke="white" y2="5" x2="39" y1="5"></line>
+                                                                        <line
+                                                                            strokeWidth="3"
+                                                                            stroke="white"
+                                                                            y2="1.5"
+                                                                            x2="26.0357"
+                                                                            y1="1.5"
+                                                                            x1="12"
+                                                                        ></line>
+                                                                    </svg>
+                                                                    <svg width="12" fill="none" viewBox="0 0 33 39" className="">
+                                                                        <mask fill="white" id="path-1-inside-1_8_19">
+                                                                            <path
+                                                                                d="M0 0H33V35C33 37.2091 31.2091 39 29 39H4C1.79086 39 0 37.2091 0 35V0Z"
+                                                                            ></path>
+                                                                        </mask>
+                                                                        <path
+                                                                            mask="url(#path-1-inside-1_8_19)"
+                                                                            fill="white"
+                                                                            d="M0 0H33H0ZM37 35C37 39.4183 33.4183 43 29 43H4C-0.418278 43 -4 39.4183 -4 35H4H29H37ZM4 43C-0.418278 43 -4 39.4183 -4 35V0H4V35V43ZM37 0V35C37 39.4183 33.4183 43 29 43V35V0H37Z"
+                                                                        ></path>
+                                                                        <path strokeWidth="4" stroke="white" d="M12 6L12 29"></path>
+                                                                        <path strokeWidth="4" stroke="white" d="M21 6V29"></path>
+                                                                    </svg>
+                                                                </button>
+
                                                             </div>
                                                         </div>
-                                                    </>
+                                                    </div>
                                                 ) : (
                                                     <div className='bg-yellow-200 p-4 rounded-xl'>
                                                         <p>Họ tên: Chưa có thông tin</p>
@@ -631,16 +682,16 @@ const PassportRead = () => {
                                                     </div>
                                                 )}
                                             </div>
-                                        </div>
-                                    );
-                                })
-                            ) : (
-                                <div className="flex justify-center items-center mobile:flex-col py-4">
-                                    <p className='font-semibold text-balance text-center'>Không tìm thấy khách hàng</p>
-                                    <UserRoundX className='ml-2 w-6 mobile:mt-2' />
-                                </div>
-                            )}
-                        </>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div className="flex justify-center items-center mobile:flex-col py-4">
+                                <p className='font-semibold text-balance text-center'>Không tìm thấy khách hàng</p>
+                                <UserRoundX className='ml-2 w-6 mobile:mt-2' />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -659,12 +710,25 @@ const PassportRead = () => {
                     ))}
                 </div>
                 <div className='gap-4 flex justify-end items-center mr-4 pb-2 mobile:mx-1.5 mobile:gap-3'>
-                    <div>
-                        <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>Lưu và cập nhật eTour</button>
-                    </div>
-                    <div>
-                        <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" onClick={handleSave}>Lưu</button>
-                    </div>
+                    {loadingPassports ? (
+                        <>
+                            <div>
+                                <button className="btn btn-accent btn-disabled no-animation mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>Lưu và cập nhật eTour</button>
+                            </div>
+                            <div>
+                                <button className="btn btn-accent btn-disabled no-animation mobile:h-auto mobile:text-balance" onClick={handleSave}>Lưu</button>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div>
+                                <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>Lưu và cập nhật eTour</button>
+                            </div>
+                            <div>
+                                <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" onClick={handleSave}>Lưu</button>
+                            </div>
+                        </>
+                    )}
                     {toastMessage && (
                         <div className={`toast toast-top toast-center z-50`}>
                             <div className={`alert ${toastType === 'success' ? 'alert-success' : 'alert-error'}`}>
