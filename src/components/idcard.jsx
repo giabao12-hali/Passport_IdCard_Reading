@@ -31,7 +31,7 @@ const IdCardRead = () => {
 
     // search state
     const [currentPage, setCurrentPage] = useState(1);
-    const customersPerPage = 10;
+    const customersPerPage = 5;
 
     // image modal state
     const [selectedImage, setSelectedImage] = useState(null);
@@ -388,6 +388,9 @@ const IdCardRead = () => {
 
     const totalPages = Math.ceil(mergedCustomers.length / customersPerPage);
 
+    const currentCustomers = mergedCustomers.slice(indexOfFirstCustomer, indexOfLastCustomer);
+
+
     const handlePageChange = (pageNumber) => {
         setCurrentPage(pageNumber);
         window.scrollTo({
@@ -540,8 +543,8 @@ const IdCardRead = () => {
                                 <button className="btn btn-error rounded-xl no-animation" onClick={handleClose}>Thoát</button>
                             </div>
                         </div>
-                        {mergedCustomers.length > 0 ? (
-                            mergedCustomers.map((customerPair, index) => {
+                        {currentCustomers.length > 0 ? (
+                            currentCustomers.map((customerPair, index) => {
                                 const etourCustomer = customerPair.bookingCustomer;
                                 const idCardCustomer = customerPair.idCardCustomer;
                                 return (
