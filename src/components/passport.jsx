@@ -1,7 +1,8 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
+import { Container, Button, Link } from 'react-floating-action-button'
 import axios from 'axios';
-import { Frown, Smile, UserRoundX, Trash2 } from 'lucide-react';
+import { Frown, Smile, UserRoundX, Trash2, Save, Upload, DoorOpen, Image, Menu } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const PassportRead = () => {
@@ -23,6 +24,7 @@ const PassportRead = () => {
     // loading & error state
     const [loading, setLoading] = useState(true);
     const [loadingPassports, setLoadingPassports] = useState(false);
+    const [loadingMergedCustomers, setLoadingMergedCustomers] = useState(false);
     const [progress, setProgress] = useState(0);
     const [error, setError] = useState(null);
     const [errorPassport, setErrorPassport] = useState(null);
@@ -304,7 +306,10 @@ const PassportRead = () => {
     //#region Image click
     const handleImageClick = (imageUrl) => {
         setSelectedImage(imageUrl);
-        document.getElementById('image_modal_checkbox').checked = true;
+    };
+
+    const closeModal = () => {
+        setSelectedImage(null);
     };
 
     const handleClose = () => {
@@ -312,6 +317,7 @@ const PassportRead = () => {
         sessionStorage.clear();
         window.close();
     };
+
     //#endregion
 
     //#endregion
@@ -422,7 +428,42 @@ const PassportRead = () => {
                     <input type="file" accept='image/png, image/jpeg, image/jpg' multiple onChange={handlePreviewPicture} className="file-input file-input-bordered file-input-accent max-w-xs w-full flex-none" />
                 </label>
             </div>
-
+            <Container >
+                <Button
+                    styles={{ backgroundColor: 'green', color: 'white' }}
+                    onClick={handleSave}
+                    tooltip="Lưu"
+                >
+                    <Save />
+                </Button>
+                <Button
+                    styles={{ backgroundColor: '#00d7bf', color: 'white' }}
+                    onClick={handleCopyToClipboard}
+                    tooltip="Lưu và cập nhật eTour"
+                >
+                    <Upload />
+                </Button>
+                <Button
+                    styles={{ backgroundColor: 'teal', color: 'white' }}
+                    tooltip="Xem hình ảnh"
+                    onClick={() => handleImageClick(previewImage[0])}
+                >
+                    <Image />
+                </Button>
+                <Button
+                    styles={{ backgroundColor: 'red', color: 'white' }}
+                    onClick={handleClose}
+                    tooltip="Thoát"
+                >
+                    <DoorOpen />
+                </Button>
+                <Button
+                    styles={{ backgroundColor: 'skyblue', color: 'white' }}
+                    tooltip="Chức năng"
+                >
+                    <Menu />
+                </Button>
+            </Container>
             <div>
                 {previewImage.length > 0 && (
                     <div className="carousel w-full py-12">
@@ -434,7 +475,7 @@ const PassportRead = () => {
                             >
                                 <img
                                     src={imageUrl}
-                                    className="shadow-2xl rounded-xl h-auto w-1/3 bg-center object-center cursor-pointer"
+                                    className="shadow-2xl rounded-xl h-auto w-1/3 bg-center object-center cursor-pointer mobile:w-3/4"
                                     alt={`Slide ${index + 1}`}
                                     onClick={() => handleImageClick(imageUrl)}
                                 />
@@ -456,16 +497,53 @@ const PassportRead = () => {
                         ))}
                     </div>
                 )}
-                <input type="checkbox" id="image_modal_checkbox" className="modal-toggle" />
-                <div className="modal">
-                    <div className="modal-box p-4">
-                        {selectedImage && (
-                            <img src={selectedImage} alt="Zoomed Avatar" className="max-h-screen max-w-screen rounded-xl" />
-                        )}
+                {selectedImage && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-start bg-black bg-opacity-20">
+                        <div className="relative bg-white p-4 rounded-xl shadow-lg flex flex-col ml-24">
+                            <div className="carousel">
+                                {previewImage.map((imageUrl, index) => (
+                                    <div
+                                        key={index}
+                                        className={`carousel-item relative ${selectedImage === imageUrl ? 'block' : 'hidden'
+                                            }`}
+                                    >
+                                        <img
+                                            src={imageUrl}
+                                            className="shadow-2xl rounded-xl w-1/2 mx-auto"
+                                            alt={`Slide ${index + 1}`}
+                                        />
+                                        <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 flex justify-between px-4">
+                                            <button
+                                                onClick={() =>
+                                                    setSelectedImage(previewImage[index === 0 ? previewImage.length - 1 : index - 1])
+                                                }
+                                                className="btn btn-circle"
+                                            >
+                                                ❮
+                                            </button>
+                                            <button
+                                                onClick={() =>
+                                                    setSelectedImage(previewImage[(index + 1) % previewImage.length])
+                                                }
+                                                className="btn btn-circle"
+                                            >
+                                                ❯
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <button
+                                onClick={closeModal}
+                                className="mt-4 py-2 px-4 btn btn-error text-white float-right"
+                            >
+                                Đóng
+                            </button>
+                        </div>
                     </div>
-                    <label className="modal-backdrop" htmlFor="image_modal_checkbox">Close</label>
-                </div>
+                )}
             </div>
+
             <div className="w-full justify-center py-6">
                 <div className="gap-4 mobile:flex mobile:flex-col">
                     <div className="mobile:p-4">
@@ -706,7 +784,7 @@ const PassportRead = () => {
                         />
                     ))}
                 </div>
-                <div className='gap-4 flex justify-end items-center mr-4 pb-2 mobile:mx-1.5 mobile:gap-3'>
+                {/* <div className='gap-4 flex justify-end items-center mr-4 pb-2 mobile:mx-1.5 mobile:gap-3'>
                     {loadingPassports ? (
                         <>
                             <div>
@@ -736,7 +814,7 @@ const PassportRead = () => {
                     <div>
                         <button className="btn btn-error no-animation" onClick={handleClose}>Thoát</button>
                     </div>
-                </div>
+                </div> */}
             </footer>
         </div>
     );
