@@ -15,6 +15,8 @@ const PassportRead = () => {
 
     const [mergedCustomers, setMergedCustomers] = useState([]); //* mảng D = B + C
 
+    const [showButton, setShowButton] = useState(false);
+
     // query params state
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
@@ -166,8 +168,6 @@ const PassportRead = () => {
             isMounted = false;
         };
     }, [bookingId]);
-
-
 
     //#region Merge customers
     useEffect(() => {
@@ -428,43 +428,6 @@ const PassportRead = () => {
                     <input type="file" accept='image/png, image/jpeg, image/jpg' multiple onChange={handlePreviewPicture} className="file-input file-input-bordered file-input-accent max-w-xs w-full flex-none" />
                 </label>
             </div>
-            <Container >
-                <Button
-                    styles={{ backgroundColor: 'green', color: 'white' }}
-                    onClick={handleSave}
-                    tooltip="Lưu"
-                >
-                    <Save />
-                </Button>
-                <Button
-                    styles={{ backgroundColor: '#00d7bf', color: 'white' }}
-                    onClick={handleCopyToClipboard}
-                    tooltip="Lưu và cập nhật eTour"
-                >
-                    <Upload />
-                </Button>
-                
-                <Button
-                    styles={{ backgroundColor: 'teal', color: 'white' }}
-                    tooltip="Xem hình ảnh"
-                    onClick={() => handleImageClick(previewImage[0])}
-                >
-                    <Image />
-                </Button>
-                <Button
-                    styles={{ backgroundColor: 'red', color: 'white' }}
-                    onClick={handleClose}
-                    tooltip="Thoát"
-                >
-                    <DoorOpen />
-                </Button>
-                <Button
-                    styles={{ backgroundColor: 'skyblue', color: 'white' }}
-                    tooltip="Chức năng"
-                >
-                    <Menu />
-                </Button>
-            </Container>
             <div>
                 {previewImage.length > 0 && (
                     <div className="carousel w-full py-12">
@@ -554,6 +517,40 @@ const PassportRead = () => {
                         </div>
                         <div className="flex justify-end mb-3">
                             <p className="text-lg mobile:text-base">Tổng số khách eTour: <span className="font-semibold">{totalGuest} khách</span></p>
+                        </div>
+                        <div className='gap-4 fixed flex flex-col items-end mr-8 top-2/3 right-0 z-30 mobile:mx-1.5 mobile:gap-3 '>
+                            {loadingPassports ? (
+                                <>
+                                    <div>
+                                        <button className="btn btn-accent btn-disabled rounded-xl no-animation mobile:h-auto mobile:text-balance" onClick={handleSave}>Lưu</button>
+                                    </div>
+                                    <div>
+                                        <button className="btn btn-accent btn-disabled rounded-xl no-animation mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>Lưu và cập nhật eTour</button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div>
+                                        <button className="btn btn-success no-animation rounded-xl mobile:h-auto mobile:text-balance" onClick={handleSave}>Lưu</button>
+                                    </div>
+                                    <div>
+                                        <button className="btn btn-accent no-animation rounded-xl mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>Lưu và cập nhật eTour</button>
+                                    </div>
+                                    <div>
+                                        <button className="btn btn-info no-animation rounded-xl mobile:h-auto mobile:text-balance" onClick={() => handleImageClick(previewImage[0])}>Xem hình ảnh</button>
+                                    </div>
+                                </>
+                            )}
+                            {toastMessage && (
+                                <div className={`toast toast-top toast-center z-50`}>
+                                    <div className={`alert ${toastType === 'success' ? 'alert-success' : 'alert-error'}`}>
+                                        <span>{toastMessage}</span>
+                                    </div>
+                                </div>
+                            )}
+                            <div>
+                                <button className="btn btn-error rounded-xl no-animation" onClick={handleClose}>Thoát</button>
+                            </div>
                         </div>
                         {mergedCustomers.length > 0 ? (
                             mergedCustomers.map((customerPair, index) => {
@@ -645,8 +642,7 @@ const PassportRead = () => {
                                         ) : (
                                             <div>
                                                 {passportCustomer ? (
-                                                    <div>
-
+                                                    <div >
                                                         <div className='bg-yellow-200 p-4 rounded-xl'>
 
                                                             <p className='font-bold'>Họ tên:
@@ -759,6 +755,7 @@ const PassportRead = () => {
                                                 )}
                                             </div>
                                         )}
+
                                     </div>
                                 );
                             })
@@ -785,37 +782,7 @@ const PassportRead = () => {
                         />
                     ))}
                 </div>
-                {/* <div className='gap-4 flex justify-end items-center mr-4 pb-2 mobile:mx-1.5 mobile:gap-3'>
-                    {loadingPassports ? (
-                        <>
-                            <div>
-                                <button className="btn btn-accent btn-disabled no-animation mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>Lưu và cập nhật eTour</button>
-                            </div>
-                            <div>
-                                <button className="btn btn-accent btn-disabled no-animation mobile:h-auto mobile:text-balance" onClick={handleSave}>Lưu</button>
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div>
-                                <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>Lưu và cập nhật eTour</button>
-                            </div>
-                            <div>
-                                <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" onClick={handleSave}>Lưu</button>
-                            </div>
-                        </>
-                    )}
-                    {toastMessage && (
-                        <div className={`toast toast-top toast-center z-50`}>
-                            <div className={`alert ${toastType === 'success' ? 'alert-success' : 'alert-error'}`}>
-                                <span>{toastMessage}</span>
-                            </div>
-                        </div>
-                    )}
-                    <div>
-                        <button className="btn btn-error no-animation" onClick={handleClose}>Thoát</button>
-                    </div>
-                </div> */}
+
             </footer>
         </div>
     );
