@@ -1,8 +1,7 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
-import { Container, Button, Link } from 'react-floating-action-button'
 import axios from 'axios';
-import { Frown, Smile, UserRoundX, Trash2, Save, Upload, DoorOpen, Image, Menu } from 'lucide-react';
+import { Frown, UserRoundX } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const PassportRead = () => {
@@ -15,8 +14,6 @@ const PassportRead = () => {
 
     const [mergedCustomers, setMergedCustomers] = useState([]); //* mảng D = B + C
 
-    const [showButton, setShowButton] = useState(false);
-
     // query params state
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
@@ -26,7 +23,6 @@ const PassportRead = () => {
     // loading & error state
     const [loading, setLoading] = useState(true);
     const [loadingPassports, setLoadingPassports] = useState(false);
-    const [loadingMergedCustomers, setLoadingMergedCustomers] = useState(false);
     const [progress, setProgress] = useState(0);
     const [error, setError] = useState(null);
     const [errorPassport, setErrorPassport] = useState(null);
@@ -507,7 +503,6 @@ const PassportRead = () => {
                     </div>
                 )}
             </div>
-
             <div className="w-full justify-center py-6">
                 <div className="gap-4 mobile:flex mobile:flex-col">
                     <div className="mobile:p-4">

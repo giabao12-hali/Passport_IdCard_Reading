@@ -290,7 +290,16 @@ const IdCardRead = () => {
     //#region Image click
     const handleImageClick = (imageUrl) => {
         setSelectedImage(imageUrl);
-        document.getElementById('image_modal_checkbox').checked = true;
+    };
+
+    const closeModal = () => {
+        setSelectedImage(null);
+    };
+
+    const handleClose = () => {
+        localStorage.clear();
+        sessionStorage.clear();
+        window.close();
     };
     //#endregion
 
@@ -371,14 +380,6 @@ const IdCardRead = () => {
     };
 
     //#endregion
-
-
-
-    const handleClose = () => {
-        localStorage.clear();
-        sessionStorage.clear();
-        window.close();
-    };
     //#endregion
 
     //#region Pagination
@@ -417,7 +418,7 @@ const IdCardRead = () => {
                             >
                                 <img
                                     src={imageUrl}
-                                    className="shadow-2xl rounded-xl h-auto w-1/3 bg-center object-center cursor-pointer"
+                                    className="shadow-2xl rounded-xl h-auto w-1/3 bg-center object-center cursor-pointer mobile:w-3/4"
                                     alt={`Slide ${index + 1}`}
                                     onClick={() => handleImageClick(imageUrl)}
                                 />
@@ -439,15 +440,51 @@ const IdCardRead = () => {
                         ))}
                     </div>
                 )}
-                <input type="checkbox" id="image_modal_checkbox" className="modal-toggle" />
-                <div className="modal">
-                    <div className="modal-box">
-                        {selectedImage && (
-                            <img src={selectedImage} alt="Zoomed Avatar" className="max-h-screen max-w-screen" />
-                        )}
+                {selectedImage && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-start bg-black bg-opacity-20">
+                        <div className="relative bg-white p-4 rounded-xl shadow-lg flex flex-col ml-24">
+                            <div className="carousel">
+                                {previewImage.map((imageUrl, index) => (
+                                    <div
+                                        key={index}
+                                        className={`carousel-item relative ${selectedImage === imageUrl ? 'block' : 'hidden'
+                                            }`}
+                                    >
+                                        <img
+                                            src={imageUrl}
+                                            className="shadow-2xl rounded-xl w-1/2 mx-auto"
+                                            alt={`Slide ${index + 1}`}
+                                        />
+                                        <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 flex justify-between px-4">
+                                            <button
+                                                onClick={() =>
+                                                    setSelectedImage(previewImage[index === 0 ? previewImage.length - 1 : index - 1])
+                                                }
+                                                className="btn btn-circle"
+                                            >
+                                                ❮
+                                            </button>
+                                            <button
+                                                onClick={() =>
+                                                    setSelectedImage(previewImage[(index + 1) % previewImage.length])
+                                                }
+                                                className="btn btn-circle"
+                                            >
+                                                ❯
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            <button
+                                onClick={closeModal}
+                                className="mt-4 py-2 px-4 btn btn-error text-white float-right"
+                            >
+                                Đóng
+                            </button>
+                        </div>
                     </div>
-                    <label className="modal-backdrop" htmlFor="image_modal_checkbox">Close</label>
-                </div>
+                )}
             </div>
             <div className="w-full justify-center py-6">
                 <div className="gap-4 mobile:flex mobile:flex-col">
@@ -458,6 +495,50 @@ const IdCardRead = () => {
                         </div>
                         <div className="flex justify-end mb-3">
                             <p className="text-lg mobile:text-base">Tổng số khách eTour: <span className="font-semibold">{totalGuest} khách</span></p>
+                        </div>
+                        <div className='gap-4 fixed flex flex-col items-end mr-8 top-2/3 right-0 z-30 mobile:mx-1.5 mobile:gap-3 '>
+                            {loadingIdCards ? (
+                                <>
+                                    <div>
+                                        <button className="btn btn-accent btn-disabled rounded-xl no-animation mobile:h-auto mobile:text-balance" onClick={handleSave}>
+                                            <span className="loading loading-spinner"></span>
+                                            Lưu
+                                        </button>
+                                    </div>
+                                    <div>
+                                        <button className="btn btn-accent btn-disabled rounded-xl no-animation mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>
+                                            <span className="loading loading-spinner"></span>
+                                            Lưu và cập nhật eTour
+                                        </button>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div>
+                                        <button className="btn btn-success no-animation rounded-xl mobile:h-auto mobile:text-balance" onClick={handleSave}>
+                                            Lưu
+                                        </button>
+                                    </div>
+                                    <div>
+                                        <button className="btn btn-accent no-animation rounded-xl mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>
+                                            Lưu và cập nhật eTour
+                                        </button>
+                                    </div>
+                                    <div>
+                                        <button className="btn btn-info no-animation rounded-xl mobile:h-auto mobile:text-balance" onClick={() => handleImageClick(previewImage[0])}>Xem hình ảnh</button>
+                                    </div>
+                                </>
+                            )}
+                            {toastMessage && (
+                                <div className={`toast toast-top toast-center z-50`}>
+                                    <div className={`alert ${toastType === 'success' ? 'alert-success' : 'alert-error'}`}>
+                                        <span>{toastMessage}</span>
+                                    </div>
+                                </div>
+                            )}
+                            <div>
+                                <button className="btn btn-error rounded-xl no-animation" onClick={handleClose}>Thoát</button>
+                            </div>
                         </div>
                         {mergedCustomers.length > 0 ? (
                             mergedCustomers.map((customerPair, index) => {
@@ -688,37 +769,6 @@ const IdCardRead = () => {
                             defaultChecked={i + 1 === currentPage}
                         />
                     ))}
-                </div>
-                <div className='gap-4 flex justify-end items-center mr-4 pb-2 mobile:mx-1.5 mobile:gap-3'>
-                    {loadingIdCards ? (
-                        <>
-                            <div>
-                                <button className="btn btn-accent btn-disabled no-animation mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>Lưu và cập nhật eTour</button>
-                            </div>
-                            <div>
-                                <button className="btn btn-accent btn-disabled no-animation mobile:h-auto mobile:text-balance" onClick={handleSave}>Lưu</button>
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div>
-                                <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>Lưu và cập nhật eTour</button>
-                            </div>
-                            <div>
-                                <button className="btn btn-accent no-animation mobile:h-auto mobile:text-balance" onClick={handleSave}>Lưu</button>
-                            </div>
-                        </>
-                    )}
-                    {toastMessage && (
-                        <div className={`toast toast-top toast-center z-50`}>
-                            <div className={`alert ${toastType === 'success' ? 'alert-success' : 'alert-error'}`}>
-                                <span>{toastMessage}</span>
-                            </div>
-                        </div>
-                    )}
-                    <div>
-                        <button className="btn btn-error no-animation" onClick={handleClose}>Thoát</button>
-                    </div>
                 </div>
             </footer>
         </div>
