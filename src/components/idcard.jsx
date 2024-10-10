@@ -10,11 +10,9 @@ const IdCardRead = () => {
     const [customersIdCard, setCustomersIdCard] = useState([]);
     const [listCustomers, setListCustomers] = useState([]);
     const [totalGuest, setTotalGuest] = useState(0);
-
-    const [mergedCustomers, setMergedCustomers] = useState([]);
-
     const [totalGuestIdCards, setTotalGuestIdCards] = useState(0);
 
+    const [mergedCustomers, setMergedCustomers] = useState([]);
 
     // query params state
     const location = useLocation();
@@ -36,6 +34,7 @@ const IdCardRead = () => {
     // image modal state
     const [selectedImage, setSelectedImage] = useState(null);
     const [previewImage, setPreviewImage] = useState([]);
+    const [activeCustomer, setActiveCustomer] = useState(null);
 
     // state for select file
     const [fileArray, setFileArray] = useState([]);
@@ -98,8 +97,12 @@ const IdCardRead = () => {
             try {
                 setLoadingIdCards(true);
                 const formData = new FormData();
-                fileArray.forEach(file => {                    
+                const fileImages = [];
+
+
+                fileArray.forEach(file => {
                     formData.append('imageFile', file);
+                    fileImages.push(URL.createObjectURL(file));
                 });
 
                 const uploadResponse = await axios.post('http://108.108.110.73:1212/api/Vision/upload', formData, {
@@ -123,7 +126,11 @@ const IdCardRead = () => {
                     headers: { 'Content-Type': 'text/plain' },
                 });
 
-                const idCardsData = fileArray.length === 1 ? [response.data] : response.data.passports;
+                const idCardsData = fileArray.length === 1
+                    ? [{ ...response.data, imageUrl: fileImages[0] }]
+                    : response.data.passports.map((idCard, index) => ({
+                        ...idCard, imageUrl: fileImages[index]
+                    }));
                 const totalIdCard = fileArray.length === 1 ? 1 : response.data.passports.length;
                 setCustomersIdCard(idCardsData);
                 setTotalGuestIdCards(totalIdCard);
@@ -165,6 +172,7 @@ const IdCardRead = () => {
         if (customersEtour.length > 0 || listCustomers.length > 0 || customersIdCard.length > 0) {
             let updatedListCustomers = [...listCustomers];
             let mergedData = [];
+
             customersIdCard.forEach(idCardCustomer => {
                 const indexInListCustomers = updatedListCustomers.findIndex(
                     customer => customer.idCardNo === idCardCustomer.idCardNo
@@ -179,6 +187,7 @@ const IdCardRead = () => {
                     updatedListCustomers.push(idCardCustomer);
                 }
             });
+
             customersEtour.forEach(etourCustomer => {
                 const matchedIdCardCustomer = updatedListCustomers.find(
                     idCardCustomer => idCardCustomer.idCardNo === etourCustomer.documentNumber
@@ -187,19 +196,24 @@ const IdCardRead = () => {
                 mergedData.push({
                     bookingCustomer: etourCustomer,
                     idCardCustomer: matchedIdCardCustomer || null,
+                    imageUrl: matchedIdCardCustomer ? matchedIdCardCustomer.imageUrl : null
                 });
             });
+
             const unmatchedPassportCustomers = updatedListCustomers.filter(
                 idCardCustomer => !customersEtour.some(
                     etourCustomer => etourCustomer.documentNumber === idCardCustomer.idCardNo
                 )
             );
+
             unmatchedPassportCustomers.forEach(idCardCustomer => {
                 mergedData.push({
                     bookingCustomer: null,
                     idCardCustomer: idCardCustomer,
+                    imageUrl: idCardCustomer.imageUrl
                 });
             });
+
             setMergedCustomers(mergedData);
         }
     }, [customersEtour, listCustomers, customersIdCard]);
@@ -285,9 +299,20 @@ const IdCardRead = () => {
         setFileArray(prevFiles => [...prevFiles, ...fileArr]);
         setPreviewImage(prevImages => [...prevImages, ...previewUrls]);
     };
+
+    useEffect(() => {
+        setActiveCustomer(null); // Reset khi chuyển trang
+    }, [currentPage]);
+
+    const handleShowImage = (index) => {
+        if (activeCustomer === index) {
+            setActiveCustomer(null); // Nếu đang xem hình của người này thì ẩn hình ảnh
+        } else {
+            setActiveCustomer(index); // Cập nhật người đang xem hình ảnh
+        }
+    };
     //#endregion
 
-    //#region Image click
     const handleImageClick = (imageUrl) => {
         setSelectedImage(imageUrl);
     };
@@ -301,7 +326,6 @@ const IdCardRead = () => {
         sessionStorage.clear();
         window.close();
     };
-    //#endregion
 
     //#region handle format date
     const isDateFormatted = (dateString) => {
@@ -561,63 +585,108 @@ const IdCardRead = () => {
                                             </div>
                                         ) : (
                                             <div>
-                                                {etourCustomer ? (
-                                                    <>
-                                                        <div className='p-4 rounded-xl border-2 border-solid'>
+                                                <div className='p-4 rounded-xl border-2 border-solid relative'>
+                                                    {customerPair?.imageUrl ? (
+                                                        <>
+                                                            {activeCustomer === index ? (
+                                                                <div>
+                                                                    <img src={customerPair?.imageUrl} alt="Customer Passport" className='rounded-xl w-1/2' />
+                                                                </div>
+                                                            ) : (
+                                                                <>
+                                                                    <p className='font-bold'>Họ tên:
+                                                                        <span className={(idCardCustomer && cleanString(etourCustomer?.fullName) !== cleanString(idCardCustomer?.fullName)) ? "text-red-600" : ""}>
+                                                                            &nbsp;{etourCustomer?.fullName || "Chưa có thông tin"}
+                                                                        </span>
+                                                                    </p>
+                                                                    <p>Giới tính:
+                                                                        <span className={(idCardCustomer && cleanString(etourCustomer?.gender) !== cleanString(formatGender(idCardCustomer?.sex))) ? "text-red-600" : ""}>
+                                                                            &nbsp;{etourCustomer?.gender || "Chưa có thông tin"}
+                                                                        </span>
+                                                                    </p>
+                                                                    <p>Nơi sinh:
+                                                                        <span className={(idCardCustomer && cleanString(etourCustomer?.birthPlace) !== cleanString(idCardCustomer?.placeOfBirth)) ? "text-red-600" : ""}>
+                                                                            &nbsp;{etourCustomer?.birthPlace || "Chưa có thông tin"}
+                                                                        </span>
+                                                                    </p>
+                                                                    <p>Quốc tịch:
+                                                                        <span className={(idCardCustomer && cleanString(etourCustomer?.nationality) !== cleanString(idCardCustomer?.nationality)) ? "text-red-600" : ""}>
+                                                                            &nbsp;{etourCustomer?.nationality || "Chưa có thông tin"}
+                                                                        </span>
+                                                                    </p>
+                                                                    <p className='font-bold'>Số Passport:
+                                                                        <span className={(idCardCustomer && etourCustomer?.documentNumber !== idCardCustomer?.passportNo) ? "text-red-600" : ""}>
+                                                                            &nbsp;{etourCustomer?.documentNumber || "Chưa có thông tin"}
+                                                                        </span>
+                                                                    </p>
+                                                                    <p>Ngày sinh:
+                                                                        <span className={(idCardCustomer && formatDate(etourCustomer?.dateOfBirth) !== formatDate(idCardCustomer?.dateOfBirth)) ? "text-red-600" : ""}>
+                                                                            &nbsp;{formatDate(etourCustomer?.dateOfBirth) || "Chưa có thông tin"}
+                                                                        </span>
+                                                                    </p>
+                                                                    <p>Ngày cấp:
+                                                                        <span className={(idCardCustomer && formatDate(etourCustomer?.issueDate) !== formatDate(idCardCustomer?.dateOfIssue)) ? "text-red-600" : ""}>
+                                                                            &nbsp;{formatDate(etourCustomer?.issueDate) || "Chưa có thông tin"}
+                                                                        </span>
+                                                                    </p>
+                                                                    <p>Ngày hết hạn:
+                                                                        <span className={(idCardCustomer && formatDate(etourCustomer?.expireDate) !== formatDate(idCardCustomer?.dateOfExpiry)) ? "text-red-600" : ""}>
+                                                                            &nbsp;{formatDate(etourCustomer?.expireDate) || "Chưa có thông tin"}
+                                                                        </span>
+                                                                    </p>
+                                                                </>
+                                                            )}
+                                                            <div className='flex justify-end'>
+                                                                <button className='btn btn-info rounded-xl' onClick={() => handleShowImage(index)}>
+                                                                    {activeCustomer === index ? 'Ẩn hình ảnh' : 'Xem hình ảnh'}
+                                                                </button>
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <>
                                                             <p className='font-bold'>Họ tên:
-                                                                <span className={(idCardCustomer && cleanString(etourCustomer.fullName) !== cleanString(idCardCustomer.fullName)) ? "text-red-600" : ""}>
-                                                                    &nbsp;{etourCustomer.fullName}
+                                                                <span className={(idCardCustomer && cleanString(etourCustomer?.fullName) !== cleanString(idCardCustomer?.fullName)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{etourCustomer?.fullName || "Chưa có thông tin"}
                                                                 </span>
                                                             </p>
                                                             <p>Giới tính:
-                                                                <span className={(idCardCustomer && cleanString(etourCustomer.gender) !== cleanString(formatGender(idCardCustomer.sex))) ? "text-red-600" : ""}>
-                                                                    &nbsp;{etourCustomer.gender}
+                                                                <span className={(idCardCustomer && cleanString(etourCustomer?.gender) !== cleanString(formatGender(idCardCustomer?.sex))) ? "text-red-600" : ""}>
+                                                                    &nbsp;{etourCustomer?.gender || "Chưa có thông tin"}
                                                                 </span>
                                                             </p>
                                                             <p>Nơi sinh:
-                                                                <span className={(idCardCustomer && cleanString(etourCustomer.birthPlace) !== cleanString(idCardCustomer.placeOfBirth)) ? "text-red-600" : ""}>
-                                                                    &nbsp;{etourCustomer.birthPlace}
+                                                                <span className={(idCardCustomer && cleanString(etourCustomer?.birthPlace) !== cleanString(idCardCustomer?.placeOfBirth)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{etourCustomer?.birthPlace || "Chưa có thông tin"}
                                                                 </span>
                                                             </p>
                                                             <p>Quốc tịch:
-                                                                <span className={(idCardCustomer && cleanString(etourCustomer.nationality) !== cleanString(idCardCustomer.nationality)) ? "text-red-600" : ""}>
-                                                                    &nbsp;{etourCustomer.nationality}
+                                                                <span className={(idCardCustomer && cleanString(etourCustomer?.nationality) !== cleanString(idCardCustomer?.nationality)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{etourCustomer?.nationality || "Chưa có thông tin"}
                                                                 </span>
                                                             </p>
-                                                            <p className='font-bold'>Số CCCD/CMND:
-                                                                <span className={(idCardCustomer && etourCustomer.documentNumber !== idCardCustomer.idCardNo) ? "text-red-600" : ""}>
-                                                                    &nbsp;{etourCustomer.documentNumber}
+                                                            <p className='font-bold'>Số Passport:
+                                                                <span className={(idCardCustomer && etourCustomer?.documentNumber !== idCardCustomer?.passportNo) ? "text-red-600" : ""}>
+                                                                    &nbsp;{etourCustomer?.documentNumber || "Chưa có thông tin"}
                                                                 </span>
                                                             </p>
                                                             <p>Ngày sinh:
-                                                                <span className={(idCardCustomer && formatDate(etourCustomer.dateOfBirth) !== formatDate(idCardCustomer.dateOfBirth)) ? "text-red-600" : ""}>
-                                                                    &nbsp;{formatDate(etourCustomer.dateOfBirth)}
+                                                                <span className={(idCardCustomer && formatDate(etourCustomer?.dateOfBirth) !== formatDate(idCardCustomer?.dateOfBirth)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{formatDate(etourCustomer?.dateOfBirth) || "Chưa có thông tin"}
                                                                 </span>
                                                             </p>
                                                             <p>Ngày cấp:
-                                                                <span className={(idCardCustomer && formatDate(etourCustomer.issueDate) !== formatDate(idCardCustomer.dateOfIssue)) ? "text-red-600" : ""}>
-                                                                    &nbsp;{formatDate(etourCustomer.issueDate)}
+                                                                <span className={(idCardCustomer && formatDate(etourCustomer?.issueDate) !== formatDate(idCardCustomer?.dateOfIssue)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{formatDate(etourCustomer?.issueDate) || "Chưa có thông tin"}
                                                                 </span>
                                                             </p>
                                                             <p>Ngày hết hạn:
-                                                                <span className={(idCardCustomer && formatDate(etourCustomer.expireDate) !== formatDate(idCardCustomer.dateOfExpiry)) ? "text-red-600" : ""}>
-                                                                    &nbsp;{formatDate(etourCustomer.expireDate)}
+                                                                <span className={(idCardCustomer && formatDate(etourCustomer?.expireDate) !== formatDate(idCardCustomer?.dateOfExpiry)) ? "text-red-600" : ""}>
+                                                                    &nbsp;{formatDate(etourCustomer?.expireDate) || "Chưa có thông tin"}
                                                                 </span>
                                                             </p>
-                                                        </div>
-                                                    </>
-                                                ) : (
-                                                    <div className='p-4 rounded-xl border-2 border-solid'>
-                                                        <p>Họ tên: Chưa có thông tin</p>
-                                                        <p>Giới tính: Chưa có thông tin</p>
-                                                        <p>Nơi sinh: Chưa có thông tin</p>
-                                                        <p>Quốc tịch: Chưa có thông tin</p>
-                                                        <p>Số CCCD/CMND: Chưa có thông tin</p>
-                                                        <p>Ngày sinh: Chưa có thông tin</p>
-                                                        <p>Ngày cấp: Chưa có thông tin</p>
-                                                        <p>Ngày hết hạn: Chưa có thông tin</p>
-                                                    </div>
-                                                )}
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                         )}
                                         {loadingIdCards ? (

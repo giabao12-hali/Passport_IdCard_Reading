@@ -34,7 +34,6 @@ const PassportRead = () => {
     // image modal state
     const [selectedImage, setSelectedImage] = useState(null);
     const [previewImage, setPreviewImage] = useState([]);
-    const [showImage, setShowImage] = useState(false);
     const [activeCustomer, setActiveCustomer] = useState(null);
 
     // state for select file
@@ -180,7 +179,6 @@ const PassportRead = () => {
             let updatedListCustomers = [...listCustomers];
             let mergedData = [];
 
-            // Gộp thông tin khách hàng từ mảng C (passports)
             customersPassport.forEach(passportCustomer => {
                 const indexInListCustomers = updatedListCustomers.findIndex(
                     customer => customer.passportNo === passportCustomer.passportNo
@@ -196,7 +194,6 @@ const PassportRead = () => {
                 }
             });
 
-            // Gộp thông tin khách hàng từ mảng A (etour) với B (listCustomers)
             customersEtour.forEach(etourCustomer => {
                 const matchedPassportCustomer = updatedListCustomers.find(
                     passportCustomer => passportCustomer.passportNo === etourCustomer.documentNumber
@@ -205,11 +202,10 @@ const PassportRead = () => {
                 mergedData.push({
                     bookingCustomer: etourCustomer,
                     passportCustomer: matchedPassportCustomer || null,
-                    imageUrl: matchedPassportCustomer ? matchedPassportCustomer.imageUrl : null // Gắn đường dẫn hình ảnh vào đây
+                    imageUrl: matchedPassportCustomer ? matchedPassportCustomer.imageUrl : null 
                 });
             });
 
-            // Thêm những khách hàng chưa khớp từ passport vào mergedData
             const unmatchedPassportCustomers = updatedListCustomers.filter(
                 passportCustomer => !customersEtour.some(
                     etourCustomer => etourCustomer.documentNumber === passportCustomer.passportNo
@@ -220,7 +216,7 @@ const PassportRead = () => {
                 mergedData.push({
                     bookingCustomer: null,
                     passportCustomer: passportCustomer,
-                    imageUrl: passportCustomer.imageUrl  // Gắn hình ảnh cho khách chưa khớp với booking
+                    imageUrl: passportCustomer.imageUrl 
                 });
             });
 
