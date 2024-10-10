@@ -34,6 +34,8 @@ const PassportRead = () => {
     // image modal state
     const [selectedImage, setSelectedImage] = useState(null);
     const [previewImage, setPreviewImage] = useState([]);
+    const [showImage, setShowImage] = useState(false);
+    const [activeCustomer, setActiveCustomer] = useState(null);
 
     // state for select file
     const [fileArray, setFileArray] = useState([]);
@@ -100,8 +102,11 @@ const PassportRead = () => {
             try {
                 setLoadingPassports(true);
                 const formData = new FormData();
+                const fileImages = [];
+
                 fileArray.forEach(file => {
                     formData.append('imageFile', file);
+                    fileImages.push(URL.createObjectURL(file));
                 });
 
                 const uploadResponse = await axios.post('http://108.108.110.73:1212/api/Vision/upload', formData, {
@@ -125,7 +130,11 @@ const PassportRead = () => {
                     headers: { 'Content-Type': 'text/plain' },
                 });
 
-                const passportsData = fileArray.length === 1 ? [response.data] : response.data.passports;
+                const passportsData = fileArray.length === 1
+                    ? [{ ...response.data, imageUrl: fileImages[0] }]
+                    : response.data.passports.map((passport, index) => ({
+                        ...passport, imageUrl: fileImages[index]
+                    }));
                 const totalPassport = fileArray.length === 1 ? 1 : response.data.passports.length;
                 setCustomersPassport(passportsData);
                 setTotalGuestPassports(totalPassport);
@@ -170,6 +179,8 @@ const PassportRead = () => {
         if (customersEtour.length > 0 || listCustomers.length > 0 || customersPassport.length > 0) {
             let updatedListCustomers = [...listCustomers];
             let mergedData = [];
+
+            // Gộp thông tin khách hàng từ mảng C (passports)
             customersPassport.forEach(passportCustomer => {
                 const indexInListCustomers = updatedListCustomers.findIndex(
                     customer => customer.passportNo === passportCustomer.passportNo
@@ -184,6 +195,8 @@ const PassportRead = () => {
                     updatedListCustomers.push(passportCustomer);
                 }
             });
+
+            // Gộp thông tin khách hàng từ mảng A (etour) với B (listCustomers)
             customersEtour.forEach(etourCustomer => {
                 const matchedPassportCustomer = updatedListCustomers.find(
                     passportCustomer => passportCustomer.passportNo === etourCustomer.documentNumber
@@ -192,22 +205,29 @@ const PassportRead = () => {
                 mergedData.push({
                     bookingCustomer: etourCustomer,
                     passportCustomer: matchedPassportCustomer || null,
+                    imageUrl: matchedPassportCustomer ? matchedPassportCustomer.imageUrl : null // Gắn đường dẫn hình ảnh vào đây
                 });
             });
+
+            // Thêm những khách hàng chưa khớp từ passport vào mergedData
             const unmatchedPassportCustomers = updatedListCustomers.filter(
                 passportCustomer => !customersEtour.some(
                     etourCustomer => etourCustomer.documentNumber === passportCustomer.passportNo
                 )
             );
+
             unmatchedPassportCustomers.forEach(passportCustomer => {
                 mergedData.push({
                     bookingCustomer: null,
                     passportCustomer: passportCustomer,
+                    imageUrl: passportCustomer.imageUrl  // Gắn hình ảnh cho khách chưa khớp với booking
                 });
             });
+
             setMergedCustomers(mergedData);
         }
     }, [customersEtour, listCustomers, customersPassport]);
+
 
     //#endregion
 
@@ -296,6 +316,14 @@ const PassportRead = () => {
 
         setFileArray(prevFiles => [...prevFiles, ...fileArr]);
         setPreviewImage(prevImages => [...prevImages, ...previewUrls]);
+
+    };
+    const handleShowImage = (index) => {
+        if (activeCustomer === index) {
+            setActiveCustomer(null); // Nếu đang xem hình của người này thì ẩn hình ảnh
+        } else {
+            setActiveCustomer(index); // Cập nhật người đang xem hình ảnh
+        }
     };
     //#endregion
 
@@ -577,9 +605,66 @@ const PassportRead = () => {
                                             </div>
                                         ) : (
                                             <div>
-                                                {etourCustomer ? (
-                                                    <>
-                                                        <div className='p-4 rounded-xl border-2 border-solid'>
+                                                <div className='p-4 rounded-xl border-2 border-solid relative'>
+                                                    {customerPair.imageUrl ? (
+                                                        <>
+                                                            {activeCustomer === index ? (
+                                                                <div>
+                                                                    <img src={customerPair.imageUrl} alt="Customer Passport" className='rounded-xl w-1/2' />
+                                                                </div>
+                                                            ) : (
+                                                                <>
+                                                                    <p className='font-bold'>Họ tên:
+                                                                        <span className={(passportCustomer && cleanString(etourCustomer.fullName) !== cleanString(passportCustomer.fullName)) ? "text-red-600" : ""}>
+                                                                            &nbsp;{etourCustomer.fullName}
+                                                                        </span>
+                                                                    </p>
+                                                                    <p>Giới tính:
+                                                                        <span className={(passportCustomer && cleanString(etourCustomer.gender) !== cleanString(formatGender(passportCustomer.sex))) ? "text-red-600" : ""}>
+                                                                            &nbsp;{etourCustomer.gender}
+                                                                        </span>
+                                                                    </p>
+                                                                    <p>Nơi sinh:
+                                                                        <span className={(passportCustomer && cleanString(etourCustomer.birthPlace) !== cleanString(passportCustomer.placeOfBirth)) ? "text-red-600" : ""}>
+                                                                            &nbsp;{etourCustomer.birthPlace}
+                                                                        </span>
+                                                                    </p>
+                                                                    <p>Quốc tịch:
+                                                                        <span className={(passportCustomer && cleanString(etourCustomer.nationality) !== cleanString(passportCustomer.nationality)) ? "text-red-600" : ""}>
+                                                                            &nbsp;{etourCustomer.nationality}
+                                                                        </span>
+                                                                    </p>
+                                                                    <p className='font-bold'>Số Passport:
+                                                                        <span className={(passportCustomer && etourCustomer.documentNumber !== passportCustomer.passportNo) ? "text-red-600" : ""}>
+                                                                            &nbsp;{etourCustomer.documentNumber}
+                                                                        </span>
+                                                                    </p>
+                                                                    <p>Ngày sinh:
+                                                                        <span className={(passportCustomer && formatDate(etourCustomer.dateOfBirth) !== formatDate(passportCustomer.dateOfBirth)) ? "text-red-600" : ""}>
+                                                                            &nbsp;{formatDate(etourCustomer.dateOfBirth)}
+                                                                        </span>
+                                                                    </p>
+                                                                    <p>Ngày cấp:
+                                                                        <span className={(passportCustomer && formatDate(etourCustomer.issueDate) !== formatDate(passportCustomer.dateOfIssue)) ? "text-red-600" : ""}>
+                                                                            &nbsp;{formatDate(etourCustomer.issueDate)}
+                                                                        </span>
+                                                                    </p>
+                                                                    <p>Ngày hết hạn:
+                                                                        <span className={(passportCustomer && formatDate(etourCustomer.expireDate) !== formatDate(passportCustomer.dateOfExpiry)) ? "text-red-600" : ""}>
+                                                                            &nbsp;{formatDate(etourCustomer.expireDate)}
+                                                                        </span>
+                                                                    </p>
+                                                                </>
+                                                            )}
+
+                                                            <div className='flex justify-end'>
+                                                                <button className='btn btn-info rounded-xl' onClick={() => handleShowImage(index)}>
+                                                                    {activeCustomer === index ? 'Ẩn hình ảnh' : 'Xem hình ảnh'}
+                                                                </button>
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <>
                                                             <p className='font-bold'>Họ tên:
                                                                 <span className={(passportCustomer && cleanString(etourCustomer.fullName) !== cleanString(passportCustomer.fullName)) ? "text-red-600" : ""}>
                                                                     &nbsp;{etourCustomer.fullName}
@@ -620,20 +705,9 @@ const PassportRead = () => {
                                                                     &nbsp;{formatDate(etourCustomer.expireDate)}
                                                                 </span>
                                                             </p>
-                                                        </div>
-                                                    </>
-                                                ) : (
-                                                    <div className='p-4 rounded-xl border-2 border-solid'>
-                                                        <p>Họ tên: Chưa có thông tin</p>
-                                                        <p>Giới tính: Chưa có thông tin</p>
-                                                        <p>Nơi sinh: Chưa có thông tin</p>
-                                                        <p>Quốc tịch: Chưa có thông tin</p>
-                                                        <p>Số Passport: Chưa có thông tin</p>
-                                                        <p>Ngày sinh: Chưa có thông tin</p>
-                                                        <p>Ngày cấp: Chưa có thông tin</p>
-                                                        <p>Ngày hết hạn: Chưa có thông tin</p>
-                                                    </div>
-                                                )}
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                         )}
                                         {loadingPassports ? (
@@ -762,7 +836,6 @@ const PassportRead = () => {
                                                 )}
                                             </div>
                                         )}
-
                                     </div>
                                 );
                             })

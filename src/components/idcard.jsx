@@ -98,7 +98,7 @@ const IdCardRead = () => {
             try {
                 setLoadingIdCards(true);
                 const formData = new FormData();
-                fileArray.forEach(file => {
+                fileArray.forEach(file => {                    
                     formData.append('imageFile', file);
                 });
 
