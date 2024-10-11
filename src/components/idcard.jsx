@@ -1,8 +1,12 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Frown, Smile, UserRoundX } from 'lucide-react';
+import { Frown, UserRoundX } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import FooterLayout from './layout/footer';
+import PreviewImageLayout from './layout/preview_image';
+import ButtonActions from './layout/button_actions';
+import ToastMessageLayout from './layout/toast';
 
 const IdCardRead = () => {
     // customer state
@@ -435,83 +439,7 @@ const IdCardRead = () => {
                 </label>
             </div>
             <div>
-                {previewImage.length > 0 && (
-                    <div className="carousel w-full py-12">
-                        {previewImage.map((imageUrl, index) => (
-                            <div
-                                key={index}
-                                id={`slide${index + 1}`}
-                                className="carousel-item relative w-full flex justify-center"
-                            >
-                                <img
-                                    src={imageUrl}
-                                    className="shadow-2xl rounded-xl h-auto w-1/3 bg-center object-center cursor-pointer mobile:w-3/4"
-                                    alt={`Slide ${index + 1}`}
-                                    onClick={() => handleImageClick(imageUrl)}
-                                />
-                                <div className="absolute left-5 right-5 top-1/2 flex -translate-y-1/2 transform justify-between">
-                                    <a
-                                        href={`#slide${index === 0 ? previewImage.length : index}`}
-                                        className="btn btn-circle"
-                                    >
-                                        ❮
-                                    </a>
-                                    <a
-                                        href={`#slide${(index + 1) % previewImage.length === 0 ? 1 : index + 2}`}
-                                        className="btn btn-circle"
-                                    >
-                                        ❯
-                                    </a>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-                {selectedImage && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-start bg-black bg-opacity-20">
-                        <div className="relative bg-white p-4 rounded-xl shadow-lg flex flex-col ml-24">
-                            <div className="carousel">
-                                {previewImage.map((imageUrl, index) => (
-                                    <div
-                                        key={index}
-                                        className={`carousel-item relative ${selectedImage === imageUrl ? 'block' : 'hidden'
-                                            }`}
-                                    >
-                                        <img
-                                            src={imageUrl}
-                                            className="shadow-2xl rounded-xl w-1/2 mx-auto"
-                                            alt={`Slide ${index + 1}`}
-                                        />
-                                        <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 flex justify-between px-4">
-                                            <button
-                                                onClick={() =>
-                                                    setSelectedImage(previewImage[index === 0 ? previewImage.length - 1 : index - 1])
-                                                }
-                                                className="btn btn-circle"
-                                            >
-                                                ❮
-                                            </button>
-                                            <button
-                                                onClick={() =>
-                                                    setSelectedImage(previewImage[(index + 1) % previewImage.length])
-                                                }
-                                                className="btn btn-circle"
-                                            >
-                                                ❯
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <button
-                                onClick={closeModal}
-                                className="mt-4 py-2 px-4 btn btn-error text-white float-right"
-                            >
-                                Đóng
-                            </button>
-                        </div>
-                    </div>
-                )}
+                <PreviewImageLayout previewImage={previewImage} />
             </div>
             <div className="w-full justify-center py-6">
                 <div className="gap-4 mobile:flex mobile:flex-col">
@@ -523,50 +451,15 @@ const IdCardRead = () => {
                         <div className="flex justify-end mb-3">
                             <p className="text-lg mobile:text-base">Tổng số khách eTour: <span className="font-semibold">{totalGuest} khách</span></p>
                         </div>
-                        <div className='gap-4 fixed flex flex-col items-end mr-8 top-2/3 right-0 z-30 mobile:mx-1.5 mobile:gap-3 '>
-                            {loadingIdCards ? (
-                                <>
-                                    <div>
-                                        <button className="btn btn-accent btn-disabled rounded-xl no-animation mobile:h-auto mobile:text-balance" onClick={handleSave}>
-                                            <span className="loading loading-spinner"></span>
-                                            Lưu
-                                        </button>
-                                    </div>
-                                    <div>
-                                        <button className="btn btn-accent btn-disabled rounded-xl no-animation mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>
-                                            <span className="loading loading-spinner"></span>
-                                            Lưu và cập nhật eTour
-                                        </button>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div>
-                                        <button className="btn btn-success no-animation rounded-xl mobile:h-auto mobile:text-balance" onClick={handleSave}>
-                                            Lưu
-                                        </button>
-                                    </div>
-                                    <div>
-                                        <button className="btn btn-accent no-animation rounded-xl mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>
-                                            Lưu và cập nhật eTour
-                                        </button>
-                                    </div>
-                                    <div>
-                                        <button className="btn btn-info no-animation rounded-xl mobile:h-auto mobile:text-balance" onClick={() => handleImageClick(previewImage[0])}>Xem hình ảnh</button>
-                                    </div>
-                                </>
-                            )}
-                            {toastMessage && (
-                                <div className={`toast toast-top toast-center z-50`}>
-                                    <div className={`alert ${toastType === 'success' ? 'alert-success' : 'alert-error'}`}>
-                                        <span>{toastMessage}</span>
-                                    </div>
-                                </div>
-                            )}
-                            <div>
-                                <button className="btn btn-error rounded-xl no-animation" onClick={handleClose}>Thoát</button>
-                            </div>
-                        </div>
+                        <ButtonActions
+                            loadingPassports={loadingIdCards}
+                            handleSave={handleSave}
+                            handleCopyToClipboard={handleCopyToClipboard}
+                            handleImageClick={handleImageClick}
+                            previewImage={previewImage}
+                            handleClose={handleClose}
+                        />
+                        <ToastMessageLayout toastMessage={toastMessage} toastType={toastType} />
                         {currentCustomers.length > 0 ? (
                             currentCustomers.map((customerPair, index) => {
                                 const etourCustomer = customerPair.bookingCustomer;
@@ -588,52 +481,61 @@ const IdCardRead = () => {
                                                 <div className='p-4 rounded-xl border-2 border-solid relative'>
                                                     {customerPair?.imageUrl ? (
                                                         <>
-                                                            {activeCustomer === index ? (
-                                                                <div>
-                                                                    <img src={customerPair?.imageUrl} alt="Customer Passport" className='rounded-xl w-1/2' />
+                                                            {loading ? (
+                                                                <div className="flex flex-col justify-center items-center">
+                                                                    <div className="radial-progress" style={{ "--value": progress }} role="progressbar">{progress}%</div>
+                                                                    <p className='font-semibold flex justify-center items-center text-center mt-4'>Đang tải toàn bộ dữ liệu khách hàng...</p>
                                                                 </div>
                                                             ) : (
                                                                 <>
-                                                                    <p className='font-bold'>Họ tên:
-                                                                        <span className={(idCardCustomer && cleanString(etourCustomer?.fullName) !== cleanString(idCardCustomer?.fullName)) ? "text-red-600" : ""}>
-                                                                            &nbsp;{etourCustomer?.fullName || "Chưa có thông tin"}
-                                                                        </span>
-                                                                    </p>
-                                                                    <p>Giới tính:
-                                                                        <span className={(idCardCustomer && cleanString(etourCustomer?.gender) !== cleanString(formatGender(idCardCustomer?.sex))) ? "text-red-600" : ""}>
-                                                                            &nbsp;{etourCustomer?.gender || "Chưa có thông tin"}
-                                                                        </span>
-                                                                    </p>
-                                                                    <p>Nơi sinh:
-                                                                        <span className={(idCardCustomer && cleanString(etourCustomer?.birthPlace) !== cleanString(idCardCustomer?.placeOfBirth)) ? "text-red-600" : ""}>
-                                                                            &nbsp;{etourCustomer?.birthPlace || "Chưa có thông tin"}
-                                                                        </span>
-                                                                    </p>
-                                                                    <p>Quốc tịch:
-                                                                        <span className={(idCardCustomer && cleanString(etourCustomer?.nationality) !== cleanString(idCardCustomer?.nationality)) ? "text-red-600" : ""}>
-                                                                            &nbsp;{etourCustomer?.nationality || "Chưa có thông tin"}
-                                                                        </span>
-                                                                    </p>
-                                                                    <p className='font-bold'>Số Passport:
-                                                                        <span className={(idCardCustomer && etourCustomer?.documentNumber !== idCardCustomer?.passportNo) ? "text-red-600" : ""}>
-                                                                            &nbsp;{etourCustomer?.documentNumber || "Chưa có thông tin"}
-                                                                        </span>
-                                                                    </p>
-                                                                    <p>Ngày sinh:
-                                                                        <span className={(idCardCustomer && formatDate(etourCustomer?.dateOfBirth) !== formatDate(idCardCustomer?.dateOfBirth)) ? "text-red-600" : ""}>
-                                                                            &nbsp;{formatDate(etourCustomer?.dateOfBirth) || "Chưa có thông tin"}
-                                                                        </span>
-                                                                    </p>
-                                                                    <p>Ngày cấp:
-                                                                        <span className={(idCardCustomer && formatDate(etourCustomer?.issueDate) !== formatDate(idCardCustomer?.dateOfIssue)) ? "text-red-600" : ""}>
-                                                                            &nbsp;{formatDate(etourCustomer?.issueDate) || "Chưa có thông tin"}
-                                                                        </span>
-                                                                    </p>
-                                                                    <p>Ngày hết hạn:
-                                                                        <span className={(idCardCustomer && formatDate(etourCustomer?.expireDate) !== formatDate(idCardCustomer?.dateOfExpiry)) ? "text-red-600" : ""}>
-                                                                            &nbsp;{formatDate(etourCustomer?.expireDate) || "Chưa có thông tin"}
-                                                                        </span>
-                                                                    </p>
+                                                                    {activeCustomer === index ? (
+                                                                        <div>
+                                                                            <img src={customerPair?.imageUrl} alt="Customer Passport" className='rounded-xl w-1/2' />
+                                                                        </div>
+                                                                    ) : (
+                                                                        <>
+                                                                            <p className='font-bold'>Họ tên:
+                                                                                <span className={(idCardCustomer && cleanString(etourCustomer?.fullName) !== cleanString(idCardCustomer?.fullName)) ? "text-red-600" : ""}>
+                                                                                    &nbsp;{etourCustomer?.fullName || "Chưa có thông tin"}
+                                                                                </span>
+                                                                            </p>
+                                                                            <p>Giới tính:
+                                                                                <span className={(idCardCustomer && cleanString(etourCustomer?.gender) !== cleanString(formatGender(idCardCustomer?.sex))) ? "text-red-600" : ""}>
+                                                                                    &nbsp;{etourCustomer?.gender || "Chưa có thông tin"}
+                                                                                </span>
+                                                                            </p>
+                                                                            <p>Nơi sinh:
+                                                                                <span className={(idCardCustomer && cleanString(etourCustomer?.birthPlace) !== cleanString(idCardCustomer?.placeOfBirth)) ? "text-red-600" : ""}>
+                                                                                    &nbsp;{etourCustomer?.birthPlace || "Chưa có thông tin"}
+                                                                                </span>
+                                                                            </p>
+                                                                            <p>Quốc tịch:
+                                                                                <span className={(idCardCustomer && cleanString(etourCustomer?.nationality) !== cleanString(idCardCustomer?.nationality)) ? "text-red-600" : ""}>
+                                                                                    &nbsp;{etourCustomer?.nationality || "Chưa có thông tin"}
+                                                                                </span>
+                                                                            </p>
+                                                                            <p className='font-bold'>Số Passport:
+                                                                                <span className={(idCardCustomer && etourCustomer?.documentNumber !== idCardCustomer?.passportNo) ? "text-red-600" : ""}>
+                                                                                    &nbsp;{etourCustomer?.documentNumber || "Chưa có thông tin"}
+                                                                                </span>
+                                                                            </p>
+                                                                            <p>Ngày sinh:
+                                                                                <span className={(idCardCustomer && formatDate(etourCustomer?.dateOfBirth) !== formatDate(idCardCustomer?.dateOfBirth)) ? "text-red-600" : ""}>
+                                                                                    &nbsp;{formatDate(etourCustomer?.dateOfBirth) || "Chưa có thông tin"}
+                                                                                </span>
+                                                                            </p>
+                                                                            <p>Ngày cấp:
+                                                                                <span className={(idCardCustomer && formatDate(etourCustomer?.issueDate) !== formatDate(idCardCustomer?.dateOfIssue)) ? "text-red-600" : ""}>
+                                                                                    &nbsp;{formatDate(etourCustomer?.issueDate) || "Chưa có thông tin"}
+                                                                                </span>
+                                                                            </p>
+                                                                            <p>Ngày hết hạn:
+                                                                                <span className={(idCardCustomer && formatDate(etourCustomer?.expireDate) !== formatDate(idCardCustomer?.dateOfExpiry)) ? "text-red-600" : ""}>
+                                                                                    &nbsp;{formatDate(etourCustomer?.expireDate) || "Chưa có thông tin"}
+                                                                                </span>
+                                                                            </p>
+                                                                        </>
+                                                                    )}
                                                                 </>
                                                             )}
                                                             <div className='flex justify-end'>
@@ -828,21 +730,7 @@ const IdCardRead = () => {
                     </div>
                 </div>
             </div>
-            <footer className='my-12'>
-                <div className="join my-4 flex justify-center">
-                    {Array.from({ length: totalPages }, (_, i) => (
-                        <input
-                            key={i + 1}
-                            className="join-item btn btn-square"
-                            type="radio"
-                            name="options"
-                            aria-label={i + 1}
-                            onClick={() => handlePageChange(i + 1)}
-                            defaultChecked={i + 1 === currentPage}
-                        />
-                    ))}
-                </div>
-            </footer>
+            <FooterLayout totalPages={totalPages} currentPage={currentPage} />
         </div>
     );
 }
