@@ -7,6 +7,7 @@ import FooterLayout from './layout/footer';
 import PreviewImageLayout from './layout/preview_image';
 import ButtonActions from './layout/button_actions';
 import ToastMessageLayout from './layout/toast';
+import { Cloudinary } from '@cloudinary/url-gen/index';
 
 const PassportRead = () => {
     // customer state
@@ -59,10 +60,19 @@ const PassportRead = () => {
     }
     //#endregion
 
+    //#region Cloudinary
+    const cloudinary = new Cloudinary({
+        cloud_name: "dtjipla6s",
+        api_key: "287528253784624",
+        api_secret: "ttmM2cOBYFgUZq447ntmvGm8T-I",
+    })
+    //#endregion
+
 
     //#region API
 
     //#region Call API
+    //#region Get Booking ID
     useEffect(() => {
         const fetchCustomers = async () => {
             if (!bookingId) return;
@@ -103,7 +113,9 @@ const PassportRead = () => {
 
         fetchCustomers();
     }, [bookingId]);
+    //#endregion
 
+    //#region Upload Passport & Extracted API
     useEffect(() => {
         const fetchPassportData = async () => {
             if (fileArray.length === 0) return;
@@ -111,15 +123,28 @@ const PassportRead = () => {
             try {
                 setLoadingPassports(true);
                 setError(null);
-                const formData = new FormData();
-                const fileImages = [];
 
+                const formData = new FormData();
                 fileArray.forEach(file => {
                     formData.append('imageFile', file);
-                    fileImages.push(URL.createObjectURL(file));
                 });
 
-                const uploadResponse = await axios.post('http://108.108.110.73:1212/api/Vision/upload', formData, {
+                const uploadToCloudinary = async (file) => {
+                    const formData = new FormData();
+                    formData.append('file', file);
+                    formData.append('upload_preset', 'passportPresets');
+
+                    const response = await axios.post(
+                        `https://api.cloudinary.com/v1_1/dtjipla6s/image/upload`,
+                        formData
+                    );
+                    return response.data.secure_url;
+                };
+
+                const cloudinaryPromises = fileArray.map(file => uploadToCloudinary(file));
+                const cloudinaryUrls = await Promise.all(cloudinaryPromises);
+
+                const visionResponse = await axios.post('http://108.108.110.73:1212/api/Vision/upload', formData, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                     onUploadProgress: (progressEvent) => {
                         const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -127,8 +152,10 @@ const PassportRead = () => {
                     }
                 });
 
-                const extractedTexts = uploadResponse.data.extractedTexts;
-                if (!extractedTexts || extractedTexts.length === 0) throw new Error('Không có chuỗi JSON nào được trích xuất từ ảnh.');
+                const extractedTexts = visionResponse.data.extractedTexts;
+                if (!extractedTexts || extractedTexts.length === 0) {
+                    throw new Error('Không có chuỗi JSON nào được trích xuất từ ảnh.');
+                }
 
                 const data = JSON.stringify({ extractedTexts });
                 const apiURL = fileArray.length === 1
@@ -140,9 +167,9 @@ const PassportRead = () => {
                 });
 
                 const passportsData = fileArray.length === 1
-                    ? [{ ...response.data, imageUrl: fileImages[0] }]
+                    ? [{ ...response.data, imageUrl: cloudinaryUrls[0] }]
                     : response.data.passports.map((passport, index) => ({
-                        ...passport, imageUrl: fileImages[index]
+                        ...passport, imageUrl: cloudinaryUrls[index]
                     }));
 
                 setCustomersPassport(passportsData);
@@ -177,9 +204,14 @@ const PassportRead = () => {
         }
     }, [fileArray]);
 
+    //#endregion
+
+
+
 
     //#endregion
 
+    //#region Get list customers by bookingId
     useEffect(() => {
         if (!bookingId) return;
         let isMounted = true;
@@ -187,9 +219,12 @@ const PassportRead = () => {
         const getListCustomers = async () => {
             try {
                 const response = await axios.get(`http://108.108.110.73:1212/api/Customers/get-list-customers-by-bookingId/${bookingId}`);
+                const customers = response.data.customerBooking;
 
                 if (isMounted) {
                     setListCustomers(response.data.customerBooking);
+                    const dbImages = customers.map(customer => customer.imageURL).filter(url => !!url);
+                    setPreviewImage(prevImages => [...dbImages, ...prevImages]);
                 }
             } catch (err) {
                 setError('Đã xảy ra lỗi khi tải dữ liệu khách hàng.');
@@ -202,6 +237,7 @@ const PassportRead = () => {
             isMounted = false;
         };
     }, [bookingId]);
+    //#endregion
 
     //#region Merge customers
     useEffect(() => {
@@ -213,7 +249,7 @@ const PassportRead = () => {
             if (customersEtour.length === 0 && customersPassport.length > 0) {
                 mergedData = customersPassport.map(passportCustomer => ({
                     bookingCustomer: {
-                        memberId: `extracted-${passportCustomer.passportNo}`, 
+                        memberId: `extracted-${passportCustomer.passportNo}`,
                         fullName: passportCustomer.fullName,
                         gender: passportCustomer.sex === 'M' ? 'Nam' : 'Nữ',
                         dateOfBirth: passportCustomer.dateOfBirth || 'N/A',
@@ -227,8 +263,6 @@ const PassportRead = () => {
                     passportCustomer: passportCustomer,
                     imageUrl: passportCustomer.imageUrl
                 }));
-
-                console.log("Merged Data (from passports):", mergedData);
                 setMergedCustomers(mergedData);
                 return;
             }
@@ -263,7 +297,7 @@ const PassportRead = () => {
                 } else {
                     mergedData.push({
                         bookingCustomer: {
-                            memberId: `extracted-${etourCustomer.documentNumber}`,  
+                            memberId: `extracted-${etourCustomer.documentNumber}`,
                             fullName: etourCustomer.fullName || 'Chưa có thông tin',
                             gender: etourCustomer.gender || 'Chưa có thông tin',
                             dateOfBirth: etourCustomer.dateOfBirth || 'Chưa có thông tin',
@@ -343,6 +377,7 @@ const PassportRead = () => {
                     idCardNo: customer.idCardNo,
                     dateOfExpiry: customer.dateOfExpiry,
                     issuingAuthority: customer.issuingAuthority,
+                    imageUrl: customer.imageUrl,
                     bookingId: bookingId
                 }))
             };
@@ -357,27 +392,19 @@ const PassportRead = () => {
             if (response.status === 200) {
                 setToastMessage('Lưu thông tin khách hàng thành công!');
                 setToastType('success');
-
-                setTimeout(() => {
-                    setToastMessage('');
-                }, 3000);
+                setTimeout(() => setToastMessage(''), 3000);
             } else {
                 setToastMessage('Có lỗi ở hệ thống khi lưu thông tin khách hàng.');
                 setToastType('error');
-
-                setTimeout(() => {
-                    setToastMessage('');
-                }, 3000);
+                setTimeout(() => setToastMessage(''), 3000);
             }
         } catch (error) {
             setToastMessage('Đã có dữ liệu của Passport trong hệ thống.');
             setToastType('error');
-
-            setTimeout(() => {
-                setToastMessage('');
-            }, 3000);
+            setTimeout(() => setToastMessage(''), 3000);
         }
     };
+
     //#endregion
 
     //#endregion
@@ -401,9 +428,9 @@ const PassportRead = () => {
         const previewUrls = fileArr.map(file => URL.createObjectURL(file));
 
         setFileArray(prevFiles => [...prevFiles, ...fileArr]);
-        setPreviewImage(prevImages => [...prevImages, ...previewUrls]);
-
+        setPreviewImage(prevImages => [...prevImages, ...previewUrls]); 
     };
+
 
     useEffect(() => {
         setActiveCustomer(null);

@@ -3,11 +3,11 @@ import { useState } from 'react';
 const PreviewImageLayout = ({ previewImage }) => {
     const [selectedImage, setSelectedImage] = useState(null);
     const handleImageClick = (imageUrl) => {
-        setSelectedImage(imageUrl); // Mở modal khi click vào hình ảnh
+        setSelectedImage(imageUrl);
     };
 
     const closeModal = () => {
-        setSelectedImage(null); // Đóng modal
+        setSelectedImage(null);
     };
 
     return (
@@ -90,6 +90,7 @@ const PreviewImageLayout = ({ previewImage }) => {
                 </div>
             )}
         </div>
+
     );
 }
 
