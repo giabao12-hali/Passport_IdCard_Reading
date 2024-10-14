@@ -8,6 +8,7 @@ import PreviewImageLayout from './layout/preview_image';
 import ButtonActions from './layout/button_actions';
 import ToastMessageLayout from './layout/toast';
 import { Cloudinary } from '@cloudinary/url-gen/index';
+import { scale } from '@cloudinary/url-gen/actions/resize';
 
 const PassportRead = () => {
     // customer state
@@ -61,11 +62,31 @@ const PassportRead = () => {
     //#endregion
 
     //#region Cloudinary
-    const cloudinary = new Cloudinary({
-        cloud_name: "dtjipla6s",
-        api_key: "287528253784624",
-        api_secret: "ttmM2cOBYFgUZq447ntmvGm8T-I",
-    })
+    const cld = new Cloudinary({
+        cloud: {
+            cloudName: 'dtjipla6s',
+        },
+    });
+
+    const uploadToCloudinary = async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', 'passportPresets');
+
+        // Upload ảnh lên Cloudinary
+        const response = await axios.post(
+            `https://api.cloudinary.com/v1_1/dtjipla6s/image/upload`,
+            formData
+        );
+
+        const publicId = response.data.public_id;
+
+        const image = cld.image(publicId)
+            .resize(scale().width(1000).height(1000)) 
+            .format('auto');
+
+        return image.toURL();
+    };
     //#endregion
 
 
@@ -81,7 +102,6 @@ const PassportRead = () => {
                 const response = await axios.get(`http://108.108.110.22:4105/api/Booking/GetBookingMember?BookingId=${bookingId}`);
 
                 if (!response.data.response) {
-                    console.log('No data Customers in BookingId');
                     setCustomersPassport([]);
                 }
 
@@ -129,21 +149,11 @@ const PassportRead = () => {
                     formData.append('imageFile', file);
                 });
 
-                const uploadToCloudinary = async (file) => {
-                    const formData = new FormData();
-                    formData.append('file', file);
-                    formData.append('upload_preset', 'passportPresets');
-
-                    const response = await axios.post(
-                        `https://api.cloudinary.com/v1_1/dtjipla6s/image/upload`,
-                        formData
-                    );
-                    return response.data.secure_url;
-                };
-
+                // Upload ảnh và resize bằng Cloudinary SDK
                 const cloudinaryPromises = fileArray.map(file => uploadToCloudinary(file));
                 const cloudinaryUrls = await Promise.all(cloudinaryPromises);
 
+                // Gọi Vision API để trích xuất thông tin
                 const visionResponse = await axios.post('http://108.108.110.73:1212/api/Vision/upload', formData, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                     onUploadProgress: (progressEvent) => {
@@ -157,6 +167,7 @@ const PassportRead = () => {
                     throw new Error('Không có chuỗi JSON nào được trích xuất từ ảnh.');
                 }
 
+                // Gọi API công ty để xử lý thông tin từ Vision API
                 const data = JSON.stringify({ extractedTexts });
                 const apiURL = fileArray.length === 1
                     ? 'http://108.108.110.113:8086/api/v1/get-o-result'
@@ -166,6 +177,7 @@ const PassportRead = () => {
                     headers: { 'Content-Type': 'text/plain' },
                 });
 
+                // Cập nhật data với imageUrl từ Cloudinary
                 const passportsData = fileArray.length === 1
                     ? [{ ...response.data, imageUrl: cloudinaryUrls[0] }]
                     : response.data.passports.map((passport, index) => ({
@@ -203,6 +215,7 @@ const PassportRead = () => {
             fetchPassportData();
         }
     }, [fileArray]);
+
 
     //#endregion
 
@@ -339,7 +352,6 @@ const PassportRead = () => {
                 });
             });
 
-            console.log("Merged Data (final):", mergedData);
             setMergedCustomers(mergedData);
         }
     }, [customersEtour, listCustomers, customersPassport]);
@@ -428,7 +440,7 @@ const PassportRead = () => {
         const previewUrls = fileArr.map(file => URL.createObjectURL(file));
 
         setFileArray(prevFiles => [...prevFiles, ...fileArr]);
-        setPreviewImage(prevImages => [...prevImages, ...previewUrls]); 
+        setPreviewImage(prevImages => [...prevImages, ...previewUrls]);
     };
 
 
@@ -535,7 +547,7 @@ const PassportRead = () => {
         const message = { copyAll: JSON.stringify(passportData, null, 2) };
 
         alert('Dữ liệu đã được gửi đến hệ thống eTour!');
-        console.log("Dữ liệu JSON gửi đi: ", passportData);
+        console.log("eTour Data: ", message);
 
         window.parent.postMessage(message, '*');
     };
@@ -548,7 +560,6 @@ const PassportRead = () => {
     const totalPages = Math.ceil(mergedCustomers.length / customersPerPage);
 
     const currentCustomers = mergedCustomers.slice(indexOfFirstCustomer, indexOfLastCustomer);
-    console.log("Current Customers (Paginated):", currentCustomers);
 
 
     const handlePageChange = (pageNumber) => {
@@ -570,7 +581,7 @@ const PassportRead = () => {
                     <div className="label">
                         <span className="label-text">Đính kèm ảnh Passport</span>
                     </div>
-                    <input type="file" accept='image/png, image/jpeg, image/jpg' multiple onChange={handlePreviewPicture} className="file-input file-input-bordered file-input-accent max-w-xs w-full flex-none" />
+                    <input type="file" accept='image/*' multiple onChange={handlePreviewPicture} className="file-input file-input-bordered file-input-accent max-w-xs w-full flex-none" />
                 </label>
             </div>
             <div>
@@ -601,8 +612,6 @@ const PassportRead = () => {
                                 const passportCustomer = customerPair.passportCustomer;
                                 const displayCustomer = etourCustomer || passportCustomer;
                                 const imageUrl = customerPair.imageUrl || displayCustomer?.imageUrl;
-
-                                console.log("Image URL:", imageUrl);
 
                                 return (
                                     <div key={index} className="p-4 rounded-2xl grid grid-cols-2 gap-4 mobile:flex mobile:flex-col">
