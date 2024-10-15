@@ -1,5 +1,5 @@
 /* eslint-disable react/prop-types */
-const ButtonActions = ({ loadingPassports, handleSave, handleCopyToClipboard, handleImageClick, previewImage, handleClose }) => {
+const ButtonActions = ({ loadingPassports, handleSave, handleCopyToClipboard, handleClose }) => {
     return (
         <>
             <div className="gap-4 fixed flex flex-col items-end mr-8 top-2/3 right-0 z-30 mobile:mx-1.5 mobile:gap-3 ">
@@ -30,11 +30,7 @@ const ButtonActions = ({ loadingPassports, handleSave, handleCopyToClipboard, ha
                                 Lưu và cập nhật eTour
                             </button>
                         </div>
-                        <div>
-                            <button className="btn btn-info no-animation rounded-xl mobile:h-auto mobile:text-balance" onClick={() => handleImageClick(previewImage[0])}>
-                                Xem hình ảnh
-                            </button>
-                        </div>
+                        
                     </>
                 )}
                 <div>

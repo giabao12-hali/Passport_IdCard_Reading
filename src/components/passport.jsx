@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Frown, UserRoundX } from 'lucide-react';
+import { Frown } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import FooterLayout from './layout/footer';
 import PreviewImageLayout from './layout/preview_image';
@@ -73,7 +73,7 @@ const PassportRead = () => {
         formData.append('file', file);
         formData.append('upload_preset', 'passportPresets');
 
-        // Upload ảnh lên Cloudinary
+        //* Upload ảnh lên Cloudinary
         const response = await axios.post(
             `https://api.cloudinary.com/v1_1/dtjipla6s/image/upload`,
             formData
@@ -81,8 +81,9 @@ const PassportRead = () => {
 
         const publicId = response.data.public_id;
 
+        //* Resize ảnh
         const image = cld.image(publicId)
-            .resize(scale().width(1000).height(1000)) 
+            .resize(scale().width(1000).height(1000))
             .format('auto');
 
         return image.toURL();
@@ -93,6 +94,7 @@ const PassportRead = () => {
     //#region API
 
     //#region Call API
+    
     //#region Get Booking ID
     useEffect(() => {
         const fetchCustomers = async () => {
@@ -149,11 +151,11 @@ const PassportRead = () => {
                     formData.append('imageFile', file);
                 });
 
-                // Upload ảnh và resize bằng Cloudinary SDK
+                //* Cloudinary
                 const cloudinaryPromises = fileArray.map(file => uploadToCloudinary(file));
                 const cloudinaryUrls = await Promise.all(cloudinaryPromises);
 
-                // Gọi Vision API để trích xuất thông tin
+                //* Vision Google API
                 const visionResponse = await axios.post('http://108.108.110.73:1212/api/Vision/upload', formData, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                     onUploadProgress: (progressEvent) => {
@@ -167,7 +169,7 @@ const PassportRead = () => {
                     throw new Error('Không có chuỗi JSON nào được trích xuất từ ảnh.');
                 }
 
-                // Gọi API công ty để xử lý thông tin từ Vision API
+                //* Extracted Text
                 const data = JSON.stringify({ extractedTexts });
                 const apiURL = fileArray.length === 1
                     ? 'http://108.108.110.113:8086/api/v1/get-o-result'
@@ -177,7 +179,7 @@ const PassportRead = () => {
                     headers: { 'Content-Type': 'text/plain' },
                 });
 
-                // Cập nhật data với imageUrl từ Cloudinary
+                //* Update data imageURL
                 const passportsData = fileArray.length === 1
                     ? [{ ...response.data, imageUrl: cloudinaryUrls[0] }]
                     : response.data.passports.map((passport, index) => ({
@@ -187,6 +189,7 @@ const PassportRead = () => {
                 setCustomersPassport(passportsData);
                 setTotalGuestPassports(passportsData.length);
 
+                //* If eTour response = null
                 if (!customersEtour || customersEtour.length === 0) {
                     const customerDataFromPassports = passportsData.map((passport, index) => ({
                         memberId: `extracted-${index}`,
@@ -258,7 +261,7 @@ const PassportRead = () => {
             let updatedListCustomers = [...listCustomers];
             let mergedData = [];
 
-            //* Trường hợp không có dữ liệu eTour lần đầu tiên
+            //* Trường hợp không có dữ liệu eTour
             if (customersEtour.length === 0 && customersPassport.length > 0) {
                 mergedData = customersPassport.map(passportCustomer => ({
                     bookingCustomer: {
@@ -356,11 +359,6 @@ const PassportRead = () => {
         }
     }, [customersEtour, listCustomers, customersPassport]);
 
-
-
-
-
-
     //#endregion
 
     //#region Save API
@@ -421,14 +419,13 @@ const PassportRead = () => {
 
     //#endregion
 
-    //#region Function
+    //#region ================Function===================
 
     //#region Check data
     const cleanString = (str) => {
         return str?.toLowerCase().replace(/[^a-z0-9]/g, '').trim() || '';
     };
     //#endregion
-
 
 
     //#region Picture
@@ -861,9 +858,9 @@ const PassportRead = () => {
                                 );
                             })
                         ) : (
-                            <div className="flex justify-center items-center mobile:flex-col py-4">
-                                <p className='font-semibold text-balance text-center'>Không tìm thấy khách hàng</p>
-                                <UserRoundX className='ml-2 w-6 mobile:mt-2' />
+                            <div className="flex flex-col  justify-center items-center py-4">
+                                <span className="loading loading-spinner loading-lg"></span>
+                                <p className='font-semibold flex justify-center items-center text-center mt-4'>Đang tải dữ liệu khách hàng...</p>
                             </div>
                         )}
                     </div>
