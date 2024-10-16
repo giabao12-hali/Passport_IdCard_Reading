@@ -23,10 +23,11 @@ const PassportRead = () => {
     // query params state
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
-    const bookingId = queryParams.get('bookingId');
+    const bookingParams = queryParams.get('bookingId');
     const navigate = useNavigate();
 
     // loading & error state
+    const [bookingId, setBookingId] = useState(null);
     const [loading, setLoading] = useState(true);
     const [loadingPassports, setLoadingPassports] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -98,13 +99,16 @@ const PassportRead = () => {
     //#region Get Booking ID
     useEffect(() => {
         const fetchCustomers = async () => {
-            if (!bookingId) return;
+            if (!bookingParams) return;
             try {
                 setLoading(true);
-                const response = await axios.get(`http://108.108.110.22:4105/api/Booking/GetBookingMember?BookingId=${bookingId}`);
+                const response = await axios.get(`http://108.108.110.22:4105/api/Booking/GetBookingMember?BookingId=${bookingParams}`);
 
                 if (!response.data.response) {
                     setCustomersPassport([]);
+                }
+                if (response.data.response.bookingID) {
+                    setBookingId(response.data.response.bookingID);
                 }
 
                 const { memberInfors, totalGuest } = response.data.response;
@@ -134,7 +138,7 @@ const PassportRead = () => {
         };
 
         fetchCustomers();
-    }, [bookingId]);
+    }, [bookingParams]);
     //#endregion
 
     //#region Upload Passport & Extracted API
