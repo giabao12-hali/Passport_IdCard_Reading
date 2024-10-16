@@ -9,6 +9,7 @@ import ButtonActions from './layout/button_actions';
 import ToastMessageLayout from './layout/toast';
 import { Cloudinary } from '@cloudinary/url-gen/index';
 import { scale } from '@cloudinary/url-gen/actions/resize';
+import QRCode from 'react-qr-code';
 
 const PassportRead = () => {
     // customer state
@@ -19,6 +20,13 @@ const PassportRead = () => {
     const [totalGuestPassports, setTotalGuestPassports] = useState(0);
 
     const [mergedCustomers, setMergedCustomers] = useState([]); //* mảng D = B + C
+
+    // qrcode state
+    const qrCodeUrl = window.location.href;
+    const [showQRCode, setShowQRCode] = useState(false)
+    const toogleQRCode = () => {
+        setShowQRCode(!showQRCode);
+    }
 
     // query params state
     const location = useLocation();
@@ -102,7 +110,7 @@ const PassportRead = () => {
             if (!bookingParams) return;
             try {
                 setLoading(true);
-                const response = await axios.get(`http://108.108.110.22:4105/api/Booking/GetBookingMember?BookingId=${bookingParams}`);
+                const response = await axios.get(`https://api2.travel.com.vn/local/etour/Booking/GetBookingMember?BookingId=${bookingParams}`);
 
                 if (!response.data.response) {
                     setCustomersPassport([]);
@@ -591,7 +599,31 @@ const PassportRead = () => {
     return (
         <div className='w-full min-h-screen p-4 mobile:p-0 tablet:p-4'>
             <div className='flex justify-between items-center mobile:flex mobile:flex-col'>
-                <button className='btn btn-info no-animation mobile:h-auto mobile:text-balance translate-y-[17px] mobile:mb-8' onClick={handleButtonClickRoute}>Đọc CCCD/CMND</button>
+                {/* <button className='btn btn-info no-animation mobile:h-auto mobile:text-balance translate-y-[17px] mobile:mb-8' onClick={handleButtonClickRoute}>
+                    Đọc CCCD/CMND
+                </button> */}
+                {/* Open the modal using document.getElementById('ID').showModal() method */}
+                <button
+                    className="btn"
+                    onClick={() => document.getElementById('my_modal_2').showModal()}
+                >
+                    Hiển thị QR Code
+                </button>
+
+                {/* Modal */}
+                <dialog id="my_modal_2" className="modal">
+                    <div className="modal-box">
+                        <h3 className="font-bold text-lg">QR Code của URL hiện tại</h3>
+                        <p className="py-4">Bạn có thể quét mã QR này để truy cập trang hiện tại.</p>
+
+                        <div className="flex justify-center py-4">
+                            <QRCode value={qrCodeUrl} />
+                        </div>
+                    </div>
+                    <form method="dialog" className="modal-backdrop">
+                        <button>close</button>
+                    </form>
+                </dialog>
                 <label className="form-control w-full max-w-xs">
                     <div className="label">
                         <span className="label-text">Đính kèm ảnh Passport</span>
@@ -609,9 +641,9 @@ const PassportRead = () => {
                             <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách eTour</h3>
                             <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách Passport</h3>
                         </div>
-                        <div className="flex justify-end mb-3">
+                        {/* <div className="flex justify-end mb-3">
                             <p className="text-lg mobile:text-base">Tổng số khách eTour: <span className="font-semibold">{totalGuest} khách</span></p>
-                        </div>
+                        </div> */}
                         <ButtonActions
                             loadingPassports={loadingPassports}
                             handleSave={handleSave}
