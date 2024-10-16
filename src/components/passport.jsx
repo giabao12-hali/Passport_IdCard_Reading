@@ -613,9 +613,7 @@ const PassportRead = () => {
                 {/* Modal */}
                 <dialog id="my_modal_2" className="modal">
                     <div className="modal-box">
-                        <h3 className="font-bold text-lg">QR Code của URL hiện tại</h3>
-                        <p className="py-4">Bạn có thể quét mã QR này để truy cập trang hiện tại.</p>
-
+                        <h3 className="font-bold text-lg">Mã QR Code</h3>
                         <div className="flex justify-center py-4">
                             <QRCode value={qrCodeUrl} />
                         </div>
