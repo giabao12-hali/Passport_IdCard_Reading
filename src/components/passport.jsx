@@ -94,7 +94,7 @@ const PassportRead = () => {
     //#region API
 
     //#region Call API
-    
+
     //#region Get Booking ID
     useEffect(() => {
         const fetchCustomers = async () => {
@@ -493,6 +493,22 @@ const PassportRead = () => {
             return 'N/A';
         }
     };
+
+    const formatDateToEtour = (dateString) => {
+        try {
+            if (isDateFormatted(dateString)) {
+                return dateString;
+            }
+            const date = new Date(dateString);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+
+            return `${year}-${month}-${day}`;
+        } catch (error) {
+            return 'N/A';
+        }
+    }
     //#endregion
 
     //#region handle format gender
@@ -530,20 +546,18 @@ const PassportRead = () => {
             return {
                 fullName: passportCustomer?.fullName || '',
                 nationality: passportCustomer?.nationality || '',
-                dateOfBirth: passportCustomer?.dateOfBirth || '',
+                dateOfBirth: formatDateToEtour(passportCustomer?.dateOfBirth) || '',
                 sex: passportCustomer?.sex || '',
-                dateOfIssue: passportCustomer?.dateOfIssue || '',
+                dateOfIssue: formatDateToEtour(passportCustomer?.dateOfIssue) || '',
                 placeOfIssue: passportCustomer?.placeOfIssue || '',
                 passportNo: passportCustomer?.passportNo || '',
                 placeOfBirth: passportCustomer?.placeOfBirth || '',
-                dateOfExpiry: passportCustomer?.dateOfExpiry || '',
+                dateOfExpiry: formatDateToEtour(passportCustomer?.dateOfExpiry) || '',
                 issuingAuthority: passportCustomer?.issuingAuthority || '',
             };
         });
 
         const message = { copyAll: JSON.stringify(passportData, null, 2) };
-
-        alert('Dữ liệu đã được gửi đến hệ thống eTour!');
         console.log("eTour Data: ", message);
 
         window.parent.postMessage(message, '*');
