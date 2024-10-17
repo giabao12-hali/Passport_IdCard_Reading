@@ -291,11 +291,11 @@ const PassportRead = () => {
     useEffect(() => {
         if (customersEtour.length > 0 || listCustomers.length > 0 || customersPassport.length > 0) {
             let updatedListCustomers = [...listCustomers];
-            let mergedData = [];
-
+            let mergedData = [];  // Chỉ sử dụng mergedData để lưu dữ liệu mới
+    
             //* Trường hợp không có dữ liệu eTour nhưng có dữ liệu Passport
             if (customersEtour.length === 0 && customersPassport.length > 0) {
-                mergedData = customersPassport.map(passportCustomer => ({
+                const newMergedData = customersPassport.map(passportCustomer => ({
                     bookingCustomer: {
                         memberId: `extracted-${passportCustomer.passportNo}`,
                         fullName: passportCustomer.fullName,
@@ -311,19 +311,19 @@ const PassportRead = () => {
                     passportCustomer: passportCustomer,
                     imageUrl: passportCustomer.imageUrl
                 }));
+    
+                mergedData = [...mergedData, ...newMergedData];
                 setMergedCustomers(mergedData);
                 return;
             }
-
+    
             //* Trường hợp có cả eTour và passport
             customersEtour.forEach(etourCustomer => {
-                // Tìm khách hàng trong danh sách Passport
                 const matchedPassportCustomer = customersPassport.find(
                     passportCustomer => passportCustomer.passportNo === etourCustomer.documentNumber
                 );
-
+    
                 if (matchedPassportCustomer) {
-                    // Ghi đè dữ liệu từ Passport lên eTour
                     updatedListCustomers.push(matchedPassportCustomer);
                     mergedData.push({
                         bookingCustomer: {
@@ -342,7 +342,6 @@ const PassportRead = () => {
                         imageUrl: matchedPassportCustomer.imageUrl
                     });
                 } else {
-                    // Nếu không có Passport, giữ nguyên dữ liệu eTour
                     mergedData.push({
                         bookingCustomer: etourCustomer,
                         passportCustomer: null,
@@ -350,14 +349,14 @@ const PassportRead = () => {
                     });
                 }
             });
-
+    
             // Thêm các khách hàng từ Passport không có trong eTour
             const unmatchedPassportCustomers = customersPassport.filter(
                 passportCustomer => !customersEtour.some(
                     etourCustomer => etourCustomer.documentNumber === passportCustomer.passportNo
                 )
             );
-
+    
             unmatchedPassportCustomers.forEach(passportCustomer => {
                 updatedListCustomers.push(passportCustomer);
                 mergedData.push({
@@ -377,10 +376,20 @@ const PassportRead = () => {
                     imageUrl: passportCustomer.imageUrl
                 });
             });
-
-            setMergedCustomers(mergedData);
+    
+            // Cập nhật lại mergedCustomers với dữ liệu mới mà không sao chép dữ liệu cũ
+            setMergedCustomers(prevMergedCustomers => {
+                // Lọc ra những dữ liệu chưa có trong mergedCustomers
+                const uniqueData = mergedData.filter(newItem => 
+                    !prevMergedCustomers.some(existingItem => existingItem.passportCustomer?.passportNo === newItem.passportCustomer?.passportNo)
+                );
+    
+                // Trả về mergedCustomers mới, kết hợp dữ liệu cũ và dữ liệu mới
+                return [...prevMergedCustomers, ...uniqueData];
+            });
         }
-    }, [customersEtour, listCustomers, customersPassport]);
+    }, [customersEtour, listCustomers, customersPassport]);  
+    
 
 
 
@@ -404,7 +413,7 @@ const PassportRead = () => {
                     fullName: customer.fullName,
                     nationality: customer.nationality,
                     dateOfBirth: customer.dateOfBirth,
-                    sex: customer.sex,
+                    sex: formatGender(customer.sex),
                     dateOfIssue: customer.dateOfIssue,
                     placeOfIssue: customer.placeOfIssue,
                     passportNo: customer.passportNo,
@@ -493,6 +502,17 @@ const PassportRead = () => {
     const isDateFormatted = (dateString) => {
         const regex = /^\d{2}\/\d{2}\/\d{4}$/;
         return regex.test(dateString);
+    };
+
+    const formatGender = (gender) => {
+        const lowerCaseGender = gender?.toLowerCase();
+        if (lowerCaseGender === 'f' || lowerCaseGender === 'nữ' || lowerCaseGender === 'nu' || lowerCaseGender === 'N/A') {
+            return 'Nữ';
+        } else if (lowerCaseGender === 'm' || lowerCaseGender === 'nam' || lowerCaseGender === 'male' || lowerCaseGender === 'N/A') {
+            return 'Nam';
+        } else {
+            return 'N/A';
+        }
     };
 
     const formatDateToEtour = (dateString) => {
