@@ -44,7 +44,7 @@ const PassportCard = ({ passportCustomer, etourCustomer, loadingPassports, progr
             {loadingPassports ? (
                 <div className="flex flex-col justify-center items-center">
                     <div className="radial-progress" style={{ "--value": progress }} role="progressbar">{progress}%</div>
-                    <p className='font-semibold flex justify-center items-center text-center mt-4'>Đang tải toàn bộ dữ liệu khách hàng...</p>
+                    <p className='font-semibold flex justify-center items-center text-center mt-4'>Đang tải dữ liệu khách hàng...</p>
                 </div>
             ) : (
                 <div>

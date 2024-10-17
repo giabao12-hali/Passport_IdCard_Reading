@@ -1,8 +1,8 @@
 /* eslint-disable react/prop-types */
-const ButtonActions = ({ loadingPassports, handleSave, handleCopyToClipboard, handleClose }) => {
+const ButtonActions = ({ loadingPassports, handleSave, handleCopyToClipboard }) => {
     return (
         <>
-            <div className="gap-4 fixed flex flex-col items-end mr-8 top-2/3 right-0 z-30 mobile:mx-1.5 mobile:gap-3 ">
+            <div className="gap-4 fixed flex flex-col items-end mr-8 top-3/4 right-0 z-30 mobile:mx-1.5 mobile:gap-3 ">
                 {loadingPassports ? (
                     <>
                         <div>
@@ -33,9 +33,9 @@ const ButtonActions = ({ loadingPassports, handleSave, handleCopyToClipboard, ha
                         
                     </>
                 )}
-                <div>
+                {/* <div>
                     <button className="btn btn-error rounded-xl no-animation" onClick={handleClose}>Thoát</button>
-                </div>
+                </div> */}
             </div>
         </>
     );

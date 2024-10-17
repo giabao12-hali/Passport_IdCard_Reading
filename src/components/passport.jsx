@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Frown, UserRoundX } from 'lucide-react';
+import { UserRoundX } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import FooterLayout from './layout/footer';
 import PreviewImageLayout from './layout/preview_image';
@@ -11,7 +11,6 @@ import { Cloudinary } from '@cloudinary/url-gen/index';
 import { scale } from '@cloudinary/url-gen/actions/resize';
 import QRCode from 'react-qr-code';
 import CustomersEtourLayout from './layout/customers/customerEtour_layout';
-import CustomersPassportLayout from './layout/customers/customerPassport_layout';
 import PassportCard from './layout/customers/customerPassport_layout';
 
 const PassportRead = () => {
@@ -23,8 +22,6 @@ const PassportRead = () => {
 
     // qrcode state
     const qrCodeUrl = window.location.href;
-    const [showQRCode, setShowQRCode] = useState(false)
-
     // query params state
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
@@ -130,7 +127,7 @@ const PassportRead = () => {
                     return;
                 }
 
-                const { memberInfors, totalGuest } = bookingResponse;
+                const { memberInfors } = bookingResponse;
 
                 const customerData = memberInfors.map((member, index) => ({
                     memberId: member.memberId,
@@ -178,7 +175,7 @@ const PassportRead = () => {
                 const cloudinaryUrls = await Promise.all(cloudinaryPromises);
 
                 //* Vision Google API
-                const visionResponse = await axios.post('https://be.id-extract.vietravel.com/api/Vision/upload', formData, {
+                const visionResponse = await axios.post('https://beid-extract.vietravel.com/api/Vision/upload', formData, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                     onUploadProgress: (progressEvent) => {
                         const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -247,14 +244,31 @@ const PassportRead = () => {
 
     //#region Get list customers by bookingId
     useEffect(() => {
-        if (!bookingId) return;
+        if (!bookingParams) return;
         let isMounted = true;
 
         const getListCustomers = async () => {
             try {
-                const response = await axios.get(`https://be.id-extract.vietravel.com/api/Customers/get-list-customers-by-bookingId/${bookingId}`);
+                const response = await axios.get(`https://beid-extract.vietravel.com/api/Customers/get-list-customers-by-bookingId/${bookingParams}`);
                 const customers = response.data.customerBooking;
-
+                if (customers && customers.length > 0) {
+                    const passportData = response.data.customerBooking.map(customer => ({
+                        fullName: customer.fullName,
+                        nationality: customer.nationality,
+                        dateOfBirth: customer.dateOfBirth,
+                        sex: customer.sex === 'M' ? 'Nam' : 'Nữ',
+                        dateOfIssue: customer.dateOfIssue,
+                        placeOfIssue: customer.placeOfIssue,
+                        passportNo: customer.passportNo,
+                        placeOfBirth: customer.placeOfBirth,
+                        dateOfExpiry: customer.dateOfExpiry,
+                        issuingAuthority: customer.issuingAuthority,
+                        imageUrl: customer.imageURL,
+                    }));
+                    setCustomersPassport(passportData);
+                } else {
+                    setError("Không có thông tin khách hàng trong Passport.");
+                }
                 if (isMounted) {
                     setListCustomers(response.data.customerBooking);
                     const dbImages = customers.map(customer => customer.imageURL).filter(url => !!url);
@@ -270,7 +284,7 @@ const PassportRead = () => {
         return () => {
             isMounted = false;
         };
-    }, [bookingId]);
+    }, [bookingParams]);
     //#endregion
 
     //#region Merge customers
@@ -279,7 +293,7 @@ const PassportRead = () => {
             let updatedListCustomers = [...listCustomers];
             let mergedData = [];
 
-            // Trường hợp không có dữ liệu eTour nhưng có dữ liệu Passport
+            //* Trường hợp không có dữ liệu eTour nhưng có dữ liệu Passport
             if (customersEtour.length === 0 && customersPassport.length > 0) {
                 mergedData = customersPassport.map(passportCustomer => ({
                     bookingCustomer: {
@@ -310,13 +324,12 @@ const PassportRead = () => {
 
                 if (matchedPassportCustomer) {
                     // Ghi đè dữ liệu từ Passport lên eTour
+                    updatedListCustomers.push(matchedPassportCustomer);
                     mergedData.push({
                         bookingCustomer: {
                             ...etourCustomer,
                             fullName: matchedPassportCustomer.fullName || etourCustomer.fullName,
-                            gender: ['m', 'nam', 'male'].includes(matchedPassportCustomer.sex?.toLowerCase())
-                                ? 'Nam'
-                                : 'Nữ',  // Lấy gender từ Passport
+                            gender: ['m', 'nam', 'male'].includes(matchedPassportCustomer.sex?.toLowerCase()) ? 'Nam' : 'Nữ',
                             dateOfBirth: matchedPassportCustomer.dateOfBirth || etourCustomer.dateOfBirth,
                             issueDate: matchedPassportCustomer.dateOfIssue || etourCustomer.issueDate,
                             expireDate: matchedPassportCustomer.dateOfExpiry || etourCustomer.expireDate,
@@ -346,6 +359,7 @@ const PassportRead = () => {
             );
 
             unmatchedPassportCustomers.forEach(passportCustomer => {
+                updatedListCustomers.push(passportCustomer);
                 mergedData.push({
                     bookingCustomer: {
                         memberId: `extracted-${passportCustomer.passportNo}`,
@@ -403,7 +417,7 @@ const PassportRead = () => {
                 }))
             };
 
-            const response = await axios.post(`https://be.id-extract.vietravel.com/api/Customers/save?bookingId=${bookingId}`, payload, {
+            const response = await axios.post(`https://beid-extract.vietravel.com/api/Customers/save?bookingId=${bookingId}`, payload, {
                 headers: {
                     'Accept': '*/*',
                     'Content-Type': 'application/json'
@@ -413,7 +427,10 @@ const PassportRead = () => {
             if (response.status === 200) {
                 setToastMessage('Lưu thông tin khách hàng thành công!');
                 setToastType('success');
-                setTimeout(() => setToastMessage(''), 3000);
+                setTimeout(() => {
+                setToastMessage('');
+                window.location.reload(); // Tải lại trang sau khi lưu thành công
+            }, 1500);
             } else {
                 setToastMessage('Có lỗi ở hệ thống khi lưu thông tin khách hàng.');
                 setToastType('error');
@@ -455,23 +472,11 @@ const PassportRead = () => {
     useEffect(() => {
         setActiveCustomer(null);
     }, [currentPage]);
-
-    const handleShowImage = (index) => {
-        if (activeCustomer === index) {
-            setActiveCustomer(null);
-        } else {
-            setActiveCustomer(index);
-        }
-    };
     //#endregion
 
     //#region Image click
     const handleImageClick = (imageUrl) => {
         setSelectedImage(imageUrl);
-    };
-
-    const closeModal = () => {
-        setSelectedImage(null);
     };
 
     const handleClose = () => {
@@ -489,21 +494,6 @@ const PassportRead = () => {
         const regex = /^\d{2}\/\d{2}\/\d{4}$/;
         return regex.test(dateString);
     };
-    const formatDate = (dateString) => {
-        try {
-            if (isDateFormatted(dateString)) {
-                return dateString;
-            }
-            const date = new Date(dateString);
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-
-            return `${day}/${month}/${year}`;
-        } catch (error) {
-            return 'N/A';
-        }
-    };
 
     const formatDateToEtour = (dateString) => {
         try {
@@ -520,19 +510,6 @@ const PassportRead = () => {
             return 'N/A';
         }
     }
-    //#endregion
-
-    //#region handle format gender
-    const formatGender = (gender) => {
-        const lowerCaseGender = gender?.toLowerCase();
-        if (lowerCaseGender === 'f' || lowerCaseGender === 'nữ' || lowerCaseGender === 'nu') {
-            return 'Nữ';
-        } else if (lowerCaseGender === 'm' || lowerCaseGender === 'nam') {
-            return 'Nam';
-        } else {
-            return 'N/A';
-        }
-    };
     //#endregion
 
     //#region Delete object
@@ -636,9 +613,6 @@ const PassportRead = () => {
                             <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách eTour</h3>
                             <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách Passport</h3>
                         </div>
-                        {/* <div className="flex justify-end mb-3">
-                            <p className="text-lg mobile:text-base">Tổng số khách eTour: <span className="font-semibold">{totalGuest} khách</span></p>
-                        </div> */}
                         <ButtonActions
                             loadingPassports={loadingPassports}
                             handleSave={handleSave}
@@ -664,8 +638,7 @@ const PassportRead = () => {
                                             setActiveCustomer={setActiveCustomer}
                                             loading={loading}
                                             progress={progress} />
-                                        <PassportCard
-                                            key={index}
+                                        <PassportCard key={index}
                                             passportCustomer={passportCustomer}
                                             etourCustomer={etourCustomer}
                                             loadingPassports={loadingPassports}
