@@ -184,7 +184,7 @@ const PassportRead = () => {
                     }
                 });
 
-                const extractedTexts = visionResponse.data.extractedTexts;
+                const extractedTexts = visionResponse.data.passports;
                 if (!extractedTexts || extractedTexts.length === 0) {
                     throw new Error('Không có chuỗi JSON nào được trích xuất từ ảnh.');
                 }
