@@ -167,7 +167,7 @@ const PassportRead = () => {
 
                 const formData = new FormData();
                 fileArray.forEach(file => {
-                    formData.append('imageFile', file);
+                    formData.append('imageFiles', file);
                 });
 
                 //* Cloudinary
@@ -176,14 +176,15 @@ const PassportRead = () => {
 
                 //* Vision Google API
                 const visionResponse = await axios.post('https://beid-extract.vietravel.com/api/Vision/upload', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' },
+                    headers: { 'Access-Control-Allow-Origin': 'https://beid-extract.vietravel.com', 'Content-Type': 'multipart/form-data' },
+                    
                     onUploadProgress: (progressEvent) => {
                         const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
                         setProgress(percentCompleted);
                     }
                 });
 
-                const extractedTexts = visionResponse.data.extractedTexts;
+                const extractedTexts = visionResponse.data.passports;
                 if (!extractedTexts || extractedTexts.length === 0) {
                     throw new Error('Không có chuỗi JSON nào được trích xuất từ ảnh.');
                 }
@@ -291,7 +292,7 @@ const PassportRead = () => {
     useEffect(() => {
         if (customersEtour.length > 0 || listCustomers.length > 0 || customersPassport.length > 0) {
             let updatedListCustomers = [...listCustomers];
-            let mergedData = [];  // Chỉ sử dụng mergedData để lưu dữ liệu mới
+            let mergedData = []; 
     
             //* Trường hợp không có dữ liệu eTour nhưng có dữ liệu Passport
             if (customersEtour.length === 0 && customersPassport.length > 0) {
