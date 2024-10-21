@@ -167,7 +167,7 @@ const PassportRead = () => {
 
                 const formData = new FormData();
                 fileArray.forEach(file => {
-                    formData.append('imageFile', file);
+                    formData.append('imageFiles', file);
                 });
 
                 //* Cloudinary
@@ -176,7 +176,8 @@ const PassportRead = () => {
 
                 //* Vision Google API
                 const visionResponse = await axios.post('https://beid-extract.vietravel.com/api/Vision/upload', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' },
+                    headers: { 'Access-Control-Allow-Origin': 'https://beid-extract.vietravel.com', 'Content-Type': 'multipart/form-data' },
+                    
                     onUploadProgress: (progressEvent) => {
                         const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
                         setProgress(percentCompleted);
