@@ -56,7 +56,7 @@ const PreviewImageLayout = ({ previewImage }) => {
                                 >
                                     <img
                                         src={imageUrl}
-                                        className="shadow-2xl rounded-xl max-w-sm mx-auto"
+                                        className="shadow-2xl rounded-xl max-w-2xl mx-auto"
                                         alt={`Slide ${index + 1}`}
                                     />
                                     <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 flex justify-between px-4">

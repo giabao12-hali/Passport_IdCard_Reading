@@ -55,7 +55,7 @@ const CustomersEtourLayout = ({ customerPair, index, activeCustomer, setActiveCu
                             <>
                                 {activeCustomer === index ? (
                                     <div>
-                                        <img src={imageUrl} alt="Customer Passport" className='rounded-xl w-1/2' />
+                                        <img src={imageUrl} alt="Customer Passport" className='rounded-xl mb-4'/>
                                     </div>
                                 ) : (
                                     <>

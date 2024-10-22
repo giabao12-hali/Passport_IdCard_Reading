@@ -176,43 +176,34 @@ const PassportRead = () => {
 
                 //* Vision Google API
                 const visionResponse = await axios.post('https://beid-extract.vietravel.com/api/Vision/upload', formData, {
-                    headers: { 'Access-Control-Allow-Origin': 'https://beid-extract.vietravel.com', 'Content-Type': 'multipart/form-data' },
-                    
+                    headers: {
+                        'Access-Control-Allow-Origin': 'https://beid-extract.vietravel.com',
+                        'Content-Type': 'multipart/form-data'
+                    },
                     onUploadProgress: (progressEvent) => {
                         const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
                         setProgress(percentCompleted);
                     }
                 });
 
-                const extractedTexts = visionResponse.data.passports;
-                if (!extractedTexts || extractedTexts.length === 0) {
+                const extractedPassports = visionResponse.data.passports;
+                if (!extractedPassports || extractedPassports.length === 0) {
                     throw new Error('Không có chuỗi JSON nào được trích xuất từ ảnh.');
                 }
 
-                //* Extracted Text
-                const data = JSON.stringify({ extractedTexts });
-                const apiURL = fileArray.length === 1
-                    ? 'http://108.108.110.113:8086/api/v1/get-o-result'
-                    : 'http://108.108.110.113:8086/api/v1/get-o-array';
-
-                const response = await axios.post(apiURL, data, {
-                    headers: { 'Content-Type': 'text/plain' },
-                });
-
-                //* Update data imageURL
-                const passportsData = fileArray.length === 1
-                    ? [{ ...response.data, imageUrl: cloudinaryUrls[0] }]
-                    : response.data.passports.map((passport, index) => ({
-                        ...passport, imageUrl: cloudinaryUrls[index]
-                    }));
+                const passportsData = extractedPassports.map((passport, index) => ({
+                    ...passport,
+                    imageUrl: cloudinaryUrls[index]
+                }));
 
                 setCustomersPassport(passportsData);
-                //* If eTour response = null
+
+                //* Nếu không có dữ liệu eTour, dùng dữ liệu Passport
                 if (!customersEtour || customersEtour.length === 0) {
                     const customerDataFromPassports = passportsData.map((passport, index) => ({
                         memberId: `extracted-${index}`,
                         fullName: passport.fullName,
-                        gender: ['m', 'nam', 'male'].includes(passportsData.sex?.toLowerCase()) ? 'Nam' : 'Nữ',
+                        gender: ['m', 'nam', 'male'].includes(passport.sex?.toLowerCase()) ? 'Nam' : 'Nữ',
                         dateOfBirth: passport.dateOfBirth || 'N/A',
                         issueDate: passport.dateOfIssue || 'Chưa có thông tin',
                         expireDate: passport.dateOfExpiry || 'Chưa có thông tin',
@@ -236,6 +227,7 @@ const PassportRead = () => {
             fetchPassportData();
         }
     }, [fileArray]);
+
 
 
     //#endregion
@@ -292,8 +284,8 @@ const PassportRead = () => {
     useEffect(() => {
         if (customersEtour.length > 0 || listCustomers.length > 0 || customersPassport.length > 0) {
             let updatedListCustomers = [...listCustomers];
-            let mergedData = []; 
-    
+            let mergedData = [];
+
             //* Trường hợp không có dữ liệu eTour nhưng có dữ liệu Passport
             if (customersEtour.length === 0 && customersPassport.length > 0) {
                 const newMergedData = customersPassport.map(passportCustomer => ({
@@ -312,18 +304,18 @@ const PassportRead = () => {
                     passportCustomer: passportCustomer,
                     imageUrl: passportCustomer.imageUrl
                 }));
-    
+
                 mergedData = [...mergedData, ...newMergedData];
                 setMergedCustomers(mergedData);
                 return;
             }
-    
+
             //* Trường hợp có cả eTour và passport
             customersEtour.forEach(etourCustomer => {
                 const matchedPassportCustomer = customersPassport.find(
                     passportCustomer => passportCustomer.passportNo === etourCustomer.documentNumber
                 );
-    
+
                 if (matchedPassportCustomer) {
                     updatedListCustomers.push(matchedPassportCustomer);
                     mergedData.push({
@@ -350,14 +342,14 @@ const PassportRead = () => {
                     });
                 }
             });
-    
+
             // Thêm các khách hàng từ Passport không có trong eTour
             const unmatchedPassportCustomers = customersPassport.filter(
                 passportCustomer => !customersEtour.some(
                     etourCustomer => etourCustomer.documentNumber === passportCustomer.passportNo
                 )
             );
-    
+
             unmatchedPassportCustomers.forEach(passportCustomer => {
                 updatedListCustomers.push(passportCustomer);
                 mergedData.push({
@@ -377,20 +369,20 @@ const PassportRead = () => {
                     imageUrl: passportCustomer.imageUrl
                 });
             });
-    
+
             // Cập nhật lại mergedCustomers với dữ liệu mới mà không sao chép dữ liệu cũ
             setMergedCustomers(prevMergedCustomers => {
                 // Lọc ra những dữ liệu chưa có trong mergedCustomers
-                const uniqueData = mergedData.filter(newItem => 
+                const uniqueData = mergedData.filter(newItem =>
                     !prevMergedCustomers.some(existingItem => existingItem.passportCustomer?.passportNo === newItem.passportCustomer?.passportNo)
                 );
-    
+
                 // Trả về mergedCustomers mới, kết hợp dữ liệu cũ và dữ liệu mới
                 return [...prevMergedCustomers, ...uniqueData];
             });
         }
-    }, [customersEtour, listCustomers, customersPassport]);  
-    
+    }, [customersEtour, listCustomers, customersPassport]);
+
 
 
 
@@ -438,9 +430,9 @@ const PassportRead = () => {
                 setToastMessage('Lưu thông tin khách hàng thành công!');
                 setToastType('success');
                 setTimeout(() => {
-                setToastMessage('');
-                window.location.reload(); // Tải lại trang sau khi lưu thành công
-            }, 1500);
+                    setToastMessage('');
+                    window.location.reload(); // Tải lại trang sau khi lưu thành công
+                }, 1500);
             } else {
                 setToastMessage('Có lỗi ở hệ thống khi lưu thông tin khách hàng.');
                 setToastType('error');
