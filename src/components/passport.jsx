@@ -176,7 +176,7 @@ const PassportRead = () => {
                 const cloudinaryUrls = await Promise.all(cloudinaryPromises);
 
                 //* Vision Google API
-                const visionResponse = await axios.post('https://beid-extract.vietravel.com/api/Vision/upload', formData, {
+                const visionResponse = await axios.post('https://beid-extract.vietravel.com/api/Vision/upload?language=en', formData, {
                     headers: {
                         'Access-Control-Allow-Origin': 'https://beid-extract.vietravel.com',
                         'Content-Type': 'multipart/form-data'
@@ -577,10 +577,6 @@ const PassportRead = () => {
 
     const handlePageChange = (pageNumber) => {
         setCurrentPage(pageNumber);
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
     };
     //#endregion
 
@@ -664,10 +660,21 @@ const PassportRead = () => {
                             })
                         ) : (
                             <div className="flex flex-col justify-center items-center py-4">
-                                <p className='font-semibold flex justify-center items-center text-center mt-4 gap-2'>
-                                    Không có dữ liệu khách hàng
-                                    <UserRoundX />
-                                </p>
+                                {loading ? (
+                                    <>
+                                        <p className='font-semibold flex justify-center items-center text-center mt-4 gap-2'>
+                                            Không có dữ liệu khách hàng
+                                            <UserRoundX />
+                                        </p>
+                                    </>
+                                ) : (
+                                    <div className='flex items-center justify-center gap-4'>
+                                        <p className='font-semibold flex justify-center items-center text-center mt-4 gap-2'>
+                                            Đang tải dữ liệu khách hàng
+                                        </p>
+                                        <span className="loading loading-spinner loading-lg translate-y-1"></span>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

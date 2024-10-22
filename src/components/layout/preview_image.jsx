@@ -22,7 +22,7 @@ const PreviewImageLayout = ({ previewImage }) => {
                         >
                             <img
                                 src={imageUrl}
-                                className="shadow-2xl rounded-xl max-w-sm h-auto bg-center object-center cursor-pointer mobile:w-3/4"
+                                className="shadow-2xl rounded-xl max-w-md max-h-80  bg-center object-center cursor-pointer mobile:w-3/4"
                                 alt={`Slide ${index + 1}`}
                                 onClick={() => handleImageClick(imageUrl)}
                             />
@@ -56,7 +56,7 @@ const PreviewImageLayout = ({ previewImage }) => {
                                 >
                                     <img
                                         src={imageUrl}
-                                        className="shadow-2xl rounded-xl max-w-2xl mx-auto"
+                                        className="shadow-2xl rounded-xl max-w-lg mx-auto"
                                         alt={`Slide ${index + 1}`}
                                     />
                                     <div className="absolute left-0 right-0 top-1/2 transform -translate-y-1/2 flex justify-between px-4">
