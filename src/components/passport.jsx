@@ -670,7 +670,7 @@ const PassportRead = () => {
                                 ) : (
                                     <div className='flex items-center justify-center gap-4'>
                                         <p className='font-semibold flex justify-center items-center text-center mt-4 gap-2'>
-                                            Đang tải dữ liệu khách hàng
+                                            Đang tải dữ liệu khách hàng...
                                         </p>
                                         <span className="loading loading-spinner loading-lg translate-y-1"></span>
                                     </div>
