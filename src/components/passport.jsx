@@ -38,7 +38,7 @@ const PassportRead = () => {
 
     // pagination state
     const [currentPage, setCurrentPage] = useState(1);
-    const customersPerPage = 5;
+    const customersPerPage = 10;
 
     // image modal state
     const [selectedImage, setSelectedImage] = useState(null);
@@ -168,6 +168,7 @@ const PassportRead = () => {
                 const formData = new FormData();
                 fileArray.forEach(file => {
                     formData.append('imageFiles', file);
+                    formData.append('languageHint', 'en');
                 });
 
                 //* Cloudinary
