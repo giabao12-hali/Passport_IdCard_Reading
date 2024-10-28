@@ -1,14 +1,14 @@
 /* eslint-disable no-unused-vars */
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect} from 'react';
 import axios from 'axios';
-import { UserRoundX } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import {UserRoundX} from 'lucide-react';
+import {useLocation, useNavigate} from 'react-router-dom';
 import FooterLayout from './layout/footer';
 import PreviewImageLayout from './layout/preview_image';
 import ButtonActions from './layout/button_actions';
 import ToastMessageLayout from './layout/toast';
-import { Cloudinary } from '@cloudinary/url-gen/index';
-import { scale } from '@cloudinary/url-gen/actions/resize';
+import {Cloudinary} from '@cloudinary/url-gen/index';
+import {scale} from '@cloudinary/url-gen/actions/resize';
 import QRCode from 'react-qr-code';
 import CustomersEtourLayout from './layout/customers/customerEtour_layout';
 import PassportCard from './layout/customers/customerPassport_layout';
@@ -114,7 +114,7 @@ const PassportRead = () => {
                     setCustomersEtour(response.data.response.bookingID);
                 }
 
-                const { status, code, response: bookingResponse } = response.data;
+                const {status, code, response: bookingResponse} = response.data;
                 if (status != 1 || code != 200 || !bookingResponse) {
                     setCustomersEtour([]);
                     setError("Hệ thống đã xảy ra lỗi hoặc không có dữ liệu");
@@ -127,7 +127,7 @@ const PassportRead = () => {
                     return;
                 }
 
-                const { memberInfors } = bookingResponse;
+                const {memberInfors} = bookingResponse;
 
                 const customerData = memberInfors.map((member, index) => ({
                     memberId: member.memberId,
@@ -228,7 +228,6 @@ const PassportRead = () => {
             fetchPassportData();
         }
     }, [fileArray]);
-
 
 
     //#endregion
@@ -385,12 +384,10 @@ const PassportRead = () => {
     }, [customersEtour, listCustomers, customersPassport]);
 
 
-
-
     //#endregion
 
     //#region Save API
-    const handleSave = async () => {
+    const handleSave = async (editedCustomer) => {
         try {
             const queryParams = new URLSearchParams(window.location.search);
             const bookingId = queryParams.get('bookingId');
@@ -401,22 +398,29 @@ const PassportRead = () => {
                 return;
             }
 
+            // const payload = {
+            //     extractedData: customersPassport.map((customer) => ({
+            //         type: customer.type,
+            //         fullName: customer.fullName,
+            //         nationality: customer.nationality,
+            //         dateOfBirth: customer.dateOfBirth,
+            //         sex: formatGender(customer.sex),
+            //         dateOfIssue: customer.dateOfIssue,
+            //         placeOfIssue: customer.placeOfIssue,
+            //         passportNo: customer.passportNo,
+            //         placeOfBirth: customer.placeOfBirth,
+            //         idCardNo: customer.idCardNo,
+            //         dateOfExpiry: customer.dateOfExpiry,
+            //         issuingAuthority: customer.issuingAuthority,
+            //         imageUrl: customer.imageUrl,
+            //         bookingId: bookingId
+            //     }))
+            // };
+
             const payload = {
                 extractedData: customersPassport.map((customer) => ({
-                    type: customer.type,
-                    fullName: customer.fullName,
-                    nationality: customer.nationality,
-                    dateOfBirth: customer.dateOfBirth,
-                    sex: formatGender(customer.sex),
-                    dateOfIssue: customer.dateOfIssue,
-                    placeOfIssue: customer.placeOfIssue,
-                    passportNo: customer.passportNo,
-                    placeOfBirth: customer.placeOfBirth,
-                    idCardNo: customer.idCardNo,
-                    dateOfExpiry: customer.dateOfExpiry,
-                    issuingAuthority: customer.issuingAuthority,
-                    imageUrl: customer.imageUrl,
-                    bookingId: bookingId
+                    ...customer,
+                    ...editedCustomer // cập nhật thông tin từ editedCustomer
                 }))
             };
 
@@ -530,7 +534,7 @@ const PassportRead = () => {
     const handleDeleteObject = (passportNo) => {
         const updatedMergedCustomers = mergedCustomers.map(customer => {
             if (customer.passportCustomer?.passportNo === passportNo) {
-                return { ...customer, passportCustomer: null };
+                return {...customer, passportCustomer: null};
             }
             return customer;
         });
@@ -544,7 +548,7 @@ const PassportRead = () => {
     const handleCopyToClipboard = (event) => {
         event.preventDefault();
 
-        const passportData = mergedCustomers.map(({ passportCustomer }) => {
+        const passportData = mergedCustomers.map(({passportCustomer}) => {
             return {
                 fullName: passportCustomer?.fullName || '',
                 nationality: passportCustomer?.nationality || '',
@@ -559,7 +563,7 @@ const PassportRead = () => {
             };
         });
 
-        const message = { copyAll: JSON.stringify(passportData, null, 2) };
+        const message = {copyAll: JSON.stringify(passportData, null, 2)};
         console.log("eTour Data: ", message);
 
         window.parent.postMessage(message, '*');
@@ -599,7 +603,7 @@ const PassportRead = () => {
                     <div className="modal-box">
                         <h3 className="font-bold text-lg">Mã QR Code</h3>
                         <div className="flex justify-center py-4">
-                            <QRCode value={qrCodeUrl} />
+                            <QRCode value={qrCodeUrl}/>
                         </div>
                     </div>
                     <form method="dialog" className="modal-backdrop">
@@ -610,18 +614,21 @@ const PassportRead = () => {
                     <div className="label">
                         <span className="label-text">Đính kèm ảnh Passport</span>
                     </div>
-                    <input type="file" accept='image/*' multiple onChange={handlePreviewPicture} className="file-input file-input-bordered file-input-accent max-w-xs w-full flex-none" />
+                    <input type="file" accept='image/*' multiple onChange={handlePreviewPicture}
+                           className="file-input file-input-bordered file-input-accent max-w-xs w-full flex-none"/>
                 </label>
             </div>
             <div>
-                <PreviewImageLayout previewImage={previewImage} />
+                <PreviewImageLayout previewImage={previewImage}/>
             </div>
             <div className="w-full justify-center py-6">
                 <div className="gap-4 mobile:flex mobile:flex-col">
                     <div className="mobile:p-4">
                         <div className='grid grid-cols-2 mobile:hidden'>
-                            <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách eTour</h3>
-                            <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách Passport</h3>
+                            <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh
+                                sách eTour</h3>
+                            <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh
+                                sách Passport</h3>
                         </div>
                         <ButtonActions
                             loadingPassports={loadingPassports}
@@ -631,7 +638,7 @@ const PassportRead = () => {
                             previewImage={previewImage}
                             handleClose={handleClose}
                         />
-                        <ToastMessageLayout toastMessage={toastMessage} toastType={toastType} />
+                        <ToastMessageLayout toastMessage={toastMessage} toastType={toastType}/>
                         {currentCustomers.length > 0 ? (
                             currentCustomers.map((customerPair, index) => {
                                 const etourCustomer = customerPair.bookingCustomer;
@@ -640,20 +647,22 @@ const PassportRead = () => {
                                 const imageUrl = customerPair.imageUrl || displayCustomer?.imageUrl;
 
                                 return (
-                                    <div className="p-4 rounded-2xl grid grid-cols-2 gap-4 mobile:flex mobile:flex-col" key={index}>
+                                    <div className="p-4 rounded-2xl grid grid-cols-2 gap-4 mobile:flex mobile:flex-col"
+                                         key={index}>
                                         <CustomersEtourLayout key={index}
-                                            customerPair={customerPair}
-                                            index={index}
-                                            activeCustomer={activeCustomer}
-                                            setActiveCustomer={setActiveCustomer}
-                                            loading={loading}
-                                            progress={progress} />
+                                                              customerPair={customerPair}
+                                                              index={index}
+                                                              activeCustomer={activeCustomer}
+                                                              setActiveCustomer={setActiveCustomer}
+                                                              loading={loading}
+                                                              progress={progress}/>
                                         <PassportCard key={index}
-                                            passportCustomer={passportCustomer}
-                                            etourCustomer={etourCustomer}
-                                            loadingPassports={loadingPassports}
-                                            progress={progress}
-                                            handleDeleteObject={handleDeleteObject}
+                                                      passportCustomer={passportCustomer}
+                                                      etourCustomer={etourCustomer}
+                                                      loadingPassports={loadingPassports}
+                                                      progress={progress}
+                                                      handleDeleteObject={handleDeleteObject}
+                                                      onSave={handleSave}
                                         />
                                     </div>
                                 );
@@ -664,7 +673,7 @@ const PassportRead = () => {
                                     <>
                                         <p className='font-semibold flex justify-center items-center text-center mt-4 gap-2'>
                                             Không có dữ liệu khách hàng
-                                            <UserRoundX />
+                                            <UserRoundX/>
                                         </p>
                                     </>
                                 ) : (
@@ -680,7 +689,7 @@ const PassportRead = () => {
                     </div>
                 </div>
             </div>
-            <FooterLayout totalPages={totalPages} currentPage={currentPage} handlePageChange={handlePageChange} />
+            <FooterLayout totalPages={totalPages} currentPage={currentPage} handlePageChange={handlePageChange}/>
         </div>
     );
 }
