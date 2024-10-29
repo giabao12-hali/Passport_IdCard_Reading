@@ -1,14 +1,14 @@
 /* eslint-disable no-unused-vars */
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import {UserRoundX} from 'lucide-react';
-import {useLocation, useNavigate} from 'react-router-dom';
+import { UserRoundX } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import FooterLayout from './layout/footer';
 import PreviewImageLayout from './layout/preview_image';
 import ButtonActions from './layout/button_actions';
 import ToastMessageLayout from './layout/toast';
-import {Cloudinary} from '@cloudinary/url-gen/index';
-import {scale} from '@cloudinary/url-gen/actions/resize';
+import { Cloudinary } from '@cloudinary/url-gen/index';
+import { scale } from '@cloudinary/url-gen/actions/resize';
 import QRCode from 'react-qr-code';
 import CustomersEtourLayout from './layout/customers/customerEtour_layout';
 import PassportCard from './layout/customers/customerPassport_layout';
@@ -26,10 +26,10 @@ const PassportRead = () => {
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
     const bookingParams = queryParams.get('bookingId');
+    const [bookingId, setBookingId] = useState(null);
     const navigate = useNavigate();
 
     // loading & error state
-    const [bookingId, setBookingId] = useState(null);
     const [loading, setLoading] = useState(true);
     const [loadingPassports, setLoadingPassports] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -114,7 +114,7 @@ const PassportRead = () => {
                     setCustomersEtour(response.data.response.bookingID);
                 }
 
-                const {status, code, response: bookingResponse} = response.data;
+                const { status, code, response: bookingResponse } = response.data;
                 if (status != 1 || code != 200 || !bookingResponse) {
                     setCustomersEtour([]);
                     setError("Hệ thống đã xảy ra lỗi hoặc không có dữ liệu");
@@ -127,7 +127,7 @@ const PassportRead = () => {
                     return;
                 }
 
-                const {memberInfors} = bookingResponse;
+                const { memberInfors } = bookingResponse;
 
                 const customerData = memberInfors.map((member, index) => ({
                     memberId: member.memberId,
@@ -253,6 +253,7 @@ const PassportRead = () => {
                         dateOfIssue: customer.dateOfIssue,
                         placeOfIssue: customer.placeOfIssue,
                         passportNo: customer.passportNo,
+                        idCardNo: customer.idCardNo,
                         placeOfBirth: customer.placeOfBirth,
                         dateOfExpiry: customer.dateOfExpiry,
                         issuingAuthority: customer.issuingAuthority,
@@ -296,7 +297,13 @@ const PassportRead = () => {
                         dateOfBirth: passportCustomer.dateOfBirth || 'N/A',
                         issueDate: passportCustomer.dateOfIssue || 'Chưa có thông tin',
                         expireDate: passportCustomer.dateOfExpiry || 'Chưa có thông tin',
-                        documentNumber: passportCustomer.passportNo || 'Chưa có thông tin',
+                        // documentNumber: passportCustomer.passportNo || 'Chưa có thông tin',
+                        visaInfor: {
+                            documentNumber: passportCustomer.passportNo || null // Lưu đè documentNumber với passportNo
+                        },
+                        idCardInfor: {
+                            documentNumber: passportCustomer.idCardNo || null // Lưu đè documentNumber của idCardInfor với idCardNo
+                        },
                         birthPlace: passportCustomer.placeOfBirth || 'Chưa có thông tin',
                         nationality: passportCustomer.nationality || 'Chưa có thông tin',
                         imageUrl: passportCustomer.imageUrl
@@ -398,31 +405,31 @@ const PassportRead = () => {
                 return;
             }
 
-            // const payload = {
-            //     extractedData: customersPassport.map((customer) => ({
-            //         type: customer.type,
-            //         fullName: customer.fullName,
-            //         nationality: customer.nationality,
-            //         dateOfBirth: customer.dateOfBirth,
-            //         sex: formatGender(customer.sex),
-            //         dateOfIssue: customer.dateOfIssue,
-            //         placeOfIssue: customer.placeOfIssue,
-            //         passportNo: customer.passportNo,
-            //         placeOfBirth: customer.placeOfBirth,
-            //         idCardNo: customer.idCardNo,
-            //         dateOfExpiry: customer.dateOfExpiry,
-            //         issuingAuthority: customer.issuingAuthority,
-            //         imageUrl: customer.imageUrl,
-            //         bookingId: bookingId
-            //     }))
-            // };
-
             const payload = {
                 extractedData: customersPassport.map((customer) => ({
-                    ...customer,
-                    ...editedCustomer // cập nhật thông tin từ editedCustomer
+                    type: customer.type,
+                    fullName: customer.fullName,
+                    nationality: customer.nationality,
+                    dateOfBirth: customer.dateOfBirth,
+                    sex: formatGender(customer.sex),
+                    dateOfIssue: customer.dateOfIssue,
+                    placeOfIssue: customer.placeOfIssue,
+                    passportNo: customer.passportNo,
+                    placeOfBirth: customer.placeOfBirth,
+                    idCardNo: customer.idCardNo,
+                    dateOfExpiry: customer.dateOfExpiry,
+                    issuingAuthority: customer.issuingAuthority,
+                    imageUrl: customer.imageUrl,
+                    bookingId: bookingId,
                 }))
             };
+
+            // const payload = {
+            //     extractedData: customersPassport.map((customer) => ({
+            //         ...customer,
+            //         ...editedCustomer // cập nhật thông tin từ editedCustomer
+            //     }))
+            // };
 
             const response = await axios.post(`https://beid-extract.vietravel.com/api/Customers/save?bookingId=${bookingId}`, payload, {
                 headers: {
@@ -434,10 +441,10 @@ const PassportRead = () => {
             if (response.status === 200) {
                 setToastMessage('Lưu thông tin khách hàng thành công!');
                 setToastType('success');
-                setTimeout(() => {
-                    setToastMessage('');
-                    window.location.reload(); // Tải lại trang sau khi lưu thành công
-                }, 1500);
+                // setTimeout(() => {
+                //     setToastMessage('');
+                //     window.location.reload(); // Tải lại trang sau khi lưu thành công
+                // }, 1500);
             } else {
                 setToastMessage('Có lỗi ở hệ thống khi lưu thông tin khách hàng.');
                 setToastType('error');
@@ -534,7 +541,7 @@ const PassportRead = () => {
     const handleDeleteObject = (passportNo) => {
         const updatedMergedCustomers = mergedCustomers.map(customer => {
             if (customer.passportCustomer?.passportNo === passportNo) {
-                return {...customer, passportCustomer: null};
+                return { ...customer, passportCustomer: null };
             }
             return customer;
         });
@@ -548,7 +555,7 @@ const PassportRead = () => {
     const handleCopyToClipboard = (event) => {
         event.preventDefault();
 
-        const passportData = mergedCustomers.map(({passportCustomer}) => {
+        const passportData = mergedCustomers.map(({ passportCustomer }) => {
             return {
                 fullName: passportCustomer?.fullName || '',
                 nationality: passportCustomer?.nationality || '',
@@ -557,13 +564,14 @@ const PassportRead = () => {
                 dateOfIssue: formatDateToEtour(passportCustomer?.dateOfIssue) || '',
                 placeOfIssue: passportCustomer?.placeOfIssue || '',
                 passportNo: passportCustomer?.passportNo || '',
+                idCardNo: passportCustomer?.idCardNo || '',
                 placeOfBirth: passportCustomer?.placeOfBirth || '',
                 dateOfExpiry: formatDateToEtour(passportCustomer?.dateOfExpiry) || '',
                 issuingAuthority: passportCustomer?.issuingAuthority || '',
             };
         });
 
-        const message = {copyAll: JSON.stringify(passportData, null, 2)};
+        const message = { copyAll: JSON.stringify(passportData, null, 2) };
         console.log("eTour Data: ", message);
 
         window.parent.postMessage(message, '*');
@@ -603,7 +611,7 @@ const PassportRead = () => {
                     <div className="modal-box">
                         <h3 className="font-bold text-lg">Mã QR Code</h3>
                         <div className="flex justify-center py-4">
-                            <QRCode value={qrCodeUrl}/>
+                            <QRCode value={qrCodeUrl} />
                         </div>
                     </div>
                     <form method="dialog" className="modal-backdrop">
@@ -615,11 +623,11 @@ const PassportRead = () => {
                         <span className="label-text">Đính kèm ảnh Passport</span>
                     </div>
                     <input type="file" accept='image/*' multiple onChange={handlePreviewPicture}
-                           className="file-input file-input-bordered file-input-accent max-w-xs w-full flex-none"/>
+                        className="file-input file-input-bordered file-input-accent max-w-xs w-full flex-none" />
                 </label>
             </div>
             <div>
-                <PreviewImageLayout previewImage={previewImage}/>
+                <PreviewImageLayout previewImage={previewImage} />
             </div>
             <div className="w-full justify-center py-6">
                 <div className="gap-4 mobile:flex mobile:flex-col">
@@ -637,8 +645,9 @@ const PassportRead = () => {
                             handleImageClick={handleImageClick}
                             previewImage={previewImage}
                             handleClose={handleClose}
+                        // qrCodeUrl={qrCodeUrl}
                         />
-                        <ToastMessageLayout toastMessage={toastMessage} toastType={toastType}/>
+                        <ToastMessageLayout toastMessage={toastMessage} toastType={toastType} />
                         {currentCustomers.length > 0 ? (
                             currentCustomers.map((customerPair, index) => {
                                 const etourCustomer = customerPair.bookingCustomer;
@@ -648,21 +657,21 @@ const PassportRead = () => {
 
                                 return (
                                     <div className="p-4 rounded-2xl grid grid-cols-2 gap-4 mobile:flex mobile:flex-col"
-                                         key={index}>
+                                        key={index}>
                                         <CustomersEtourLayout key={index}
-                                                              customerPair={customerPair}
-                                                              index={index}
-                                                              activeCustomer={activeCustomer}
-                                                              setActiveCustomer={setActiveCustomer}
-                                                              loading={loading}
-                                                              progress={progress}/>
+                                            customerPair={customerPair}
+                                            index={index}
+                                            activeCustomer={activeCustomer}
+                                            setActiveCustomer={setActiveCustomer}
+                                            loading={loading}
+                                            progress={progress} />
                                         <PassportCard key={index}
-                                                      passportCustomer={passportCustomer}
-                                                      etourCustomer={etourCustomer}
-                                                      loadingPassports={loadingPassports}
-                                                      progress={progress}
-                                                      handleDeleteObject={handleDeleteObject}
-                                                      onSave={handleSave}
+                                            passportCustomer={passportCustomer}
+                                            etourCustomer={etourCustomer}
+                                            loadingPassports={loadingPassports}
+                                            progress={progress}
+                                            handleDeleteObject={handleDeleteObject}
+                                            onSave={handleSave}
                                         />
                                     </div>
                                 );
@@ -670,26 +679,26 @@ const PassportRead = () => {
                         ) : (
                             <div className="flex flex-col justify-center items-center py-4">
                                 {loading ? (
-                                    <>
-                                        <p className='font-semibold flex justify-center items-center text-center mt-4 gap-2'>
-                                            Không có dữ liệu khách hàng
-                                            <UserRoundX/>
-                                        </p>
-                                    </>
-                                ) : (
                                     <div className='flex items-center justify-center gap-4'>
                                         <p className='font-semibold flex justify-center items-center text-center mt-4 gap-2'>
                                             Đang tải dữ liệu khách hàng...
                                         </p>
                                         <span className="loading loading-spinner loading-lg translate-y-1"></span>
                                     </div>
+                                ) : (
+                                    <>
+                                        <p className='font-semibold flex justify-center items-center text-center mt-4 gap-2'>
+                                            Không có dữ liệu khách hàng
+                                            <UserRoundX />
+                                        </p>
+                                    </>
                                 )}
                             </div>
                         )}
                     </div>
                 </div>
             </div>
-            <FooterLayout totalPages={totalPages} currentPage={currentPage} handlePageChange={handlePageChange}/>
+            <FooterLayout totalPages={totalPages} currentPage={currentPage} handlePageChange={handlePageChange} />
         </div>
     );
 }

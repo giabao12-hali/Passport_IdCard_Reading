@@ -1,3 +1,5 @@
+// import QrModal from "./qr_modal";
+
 /* eslint-disable react/prop-types */
 const ButtonActions = ({ loadingPassports, handleSave, handleCopyToClipboard }) => {
     return (
@@ -30,9 +32,14 @@ const ButtonActions = ({ loadingPassports, handleSave, handleCopyToClipboard }) 
                                 Lưu và cập nhật eTour
                             </button>
                         </div>
-                        
+                        {/* <div>
+                            <button className="btn mobile:mt-2" onClick={() => document.getElementById('my_modal_1').showModal()}>
+                                Hiển thị QR Code
+                            </button>
+                        </div> */}
                     </>
                 )}
+                {/* <QrModal qrCodeUrl={qrCodeUrl}/> */}
                 {/* <div>
                     <button className="btn btn-error rounded-xl no-animation" onClick={handleClose}>Thoát</button>
                 </div> */}

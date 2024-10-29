@@ -7,21 +7,25 @@ import FooterLayout from './layout/footer';
 import PreviewImageLayout from './layout/preview_image';
 import ButtonActions from './layout/button_actions';
 import ToastMessageLayout from './layout/toast';
+import { Cloudinary } from '@cloudinary/url-gen/index';
+import { scale } from '@cloudinary/url-gen/actions/resize';
+import CustomersEtourLayout from './layout/customers/customerEtour_layout';
 
 const IdCardRead = () => {
     // customer state
-    const [customersEtour, setCustomersEtour] = useState([]);
-    const [customersIdCard, setCustomersIdCard] = useState([]);
-    const [listCustomers, setListCustomers] = useState([]);
-    const [totalGuest, setTotalGuest] = useState(0);
-    const [totalGuestIdCards, setTotalGuestIdCards] = useState(0);
+    const [customersEtour, setCustomersEtour] = useState([]); //* mảng A
+    const [customersIdCard, setCustomersIdCard] = useState([]); //* mảng B list từ api
+    const [listCustomers, setListCustomers] = useState([]); //* mảng C upload file
+    const [mergedCustomers, setMergedCustomers] = useState([]); //* mảng D = B + C
 
-    const [mergedCustomers, setMergedCustomers] = useState([]);
+    // qrcode state
+    const qrCodeUrl = window.location.href;
 
     // query params state
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
-    const bookingId = queryParams.get('bookingId');
+    const bookingParams = queryParams.get('bookingId');
+    const [bookingId, setBookingId] = useState(null)
     const navigate = useNavigate();
 
     // loading & error state
@@ -33,7 +37,7 @@ const IdCardRead = () => {
 
     // search state
     const [currentPage, setCurrentPage] = useState(1);
-    const customersPerPage = 5;
+    const customersPerPage = 10;
 
     // image modal state
     const [selectedImage, setSelectedImage] = useState(null);
@@ -55,16 +59,62 @@ const IdCardRead = () => {
         navigate(`/passport-read?bookingId=${bookingId}`);
     }
 
+    const cld = new Cloudinary({
+        cloud: {
+            cloudName: 'dtjipla6s',
+        },
+    })
 
+    const uploadToCloudinary = async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', 'passportPresets');
+
+        const response = await axios.post(
+            `https://api.cloudinary.com/v1_1/dtjipla6s/image/upload`,
+            formData
+        );
+
+        const publicId = response.data.public_id;
+
+        //* Resize ảnh
+        const image = cld.image(publicId)
+            .resize(scale().width(1000).height(1000))
+            .format('auto');
+
+        return image.toURL();
+    }
 
     //#region API
     useEffect(() => {
         const fetchCustomers = async () => {
-            if (!bookingId) return;
+            if (!bookingParams) return;
             try {
                 setLoading(true);
-                const response = await axios.get(`http://108.108.110.22:4105/api/Booking/GetBookingMember?BookingId=${bookingId}`);
-                const { memberInfors, totalGuest } = response.data.response;
+                const response = await axios.get(`https://api2.travel.com.vn/local/etour/Booking/GetBookingMember?BookingId=${bookingParams}`);
+
+                if (!response.data.response) {
+                    setCustomersEtour([]);
+                }
+                if (response.data.response.bookingId) {
+                    setCustomersEtour(response.data.response.bookingId)
+                }
+
+                const { status, code, response: bookingResponse } = response.data;
+                if (status != 1 || code != 200 || !bookingResponse) {
+                    setCustomersEtour([]);
+                    setError("Hệ thống đã xảy ra lỗi hoặc không có dữ liệu");
+                    return;
+                }
+
+                if (!bookingResponse.memberInfors) {
+                    setCustomersEtour([]);
+                    setError("Không có khách hàng trong etour");
+                    return;
+                }
+
+                const { memberInfors } = bookingResponse;
+
 
                 const customerData = memberInfors.map((member, index) => ({
                     memberId: member.memberId,
@@ -82,8 +132,6 @@ const IdCardRead = () => {
                 }));
 
                 setCustomersEtour(customerData);
-                setTotalGuest(totalGuest);
-
             } catch (err) {
                 setError('Đã xảy ra lỗi khi tải dữ liệu eTour.');
             } finally {
@@ -92,7 +140,7 @@ const IdCardRead = () => {
         };
 
         fetchCustomers();
-    }, [bookingId]);
+    }, [bookingParams]);
 
     useEffect(() => {
         const fetchIdCardData = async () => {
@@ -100,44 +148,56 @@ const IdCardRead = () => {
 
             try {
                 setLoadingIdCards(true);
+                setError(null);
+
                 const formData = new FormData();
-                const fileImages = [];
-
-
                 fileArray.forEach(file => {
-                    formData.append('imageFile', file);
-                    fileImages.push(URL.createObjectURL(file));
+                    formData.append('imageFiles', file);
+                    formData.append('languageHint', 'en');
                 });
 
-                const uploadResponse = await axios.post('http://108.108.110.73:1212/api/Vision/upload', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' },
+                const cloudinaryPromises = fileArray.map(file => uploadToCloudinary(file));
+                const cloudinaryUrls = await Promise.all(cloudinaryPromises);
 
+                const visionResponse = await axios.post('https://beid-extract.vietravel.com/api/Vision/upload?language=en', formData, {
+                    headers: {
+                        'Access-Control-Allow-Origin': 'https://beid-extract.vietravel.com',
+                        'Content-Type': 'multipart/form-data'
+                    },
                     onUploadProgress: (progressEvent) => {
                         const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
                         setProgress(percentCompleted);
                     }
                 });
 
-                const extractedTexts = uploadResponse.data.extractedTexts;
-                if (!extractedTexts || extractedTexts.length === 0) throw new Error('Không có chuỗi JSON nào được trích xuất từ ảnh.');
+                const extractedIdCards = visionResponse.data.passports;
+                if (!extractedIdCards || extractedIdCards.length === 0) {
+                    throw new Error('Không có chuỗi JSON nào được trích xuất từ hình ảnh.');
+                }
 
-                const data = JSON.stringify({ extractedTexts });
-                const apiURL = fileArray.length === 1
-                    ? 'http://108.108.110.113:8086/api/v1/get-o-result'
-                    : 'http://108.108.110.113:8086/api/v1/get-o-array';
+                const idCardsData = extractedIdCards.map((idCard, index) => ({
+                    ...idCard,
+                    imageUrl: cloudinaryUrls[index]
+                }))
 
-                const response = await axios.post(apiURL, data, {
-                    headers: { 'Content-Type': 'text/plain' },
-                });
-
-                const idCardsData = fileArray.length === 1
-                    ? [{ ...response.data, imageUrl: fileImages[0] }]
-                    : response.data.passports.map((idCard, index) => ({
-                        ...idCard, imageUrl: fileImages[index]
-                    }));
-                const totalIdCard = fileArray.length === 1 ? 1 : response.data.passports.length;
                 setCustomersIdCard(idCardsData);
-                setTotalGuestIdCards(totalIdCard);
+
+                if (!customersEtour || customersEtour.length === 0) {
+                    const customerDataFromIdCards = idCardsData.map((idCard, index) => ({
+                        memberId: `extracted-${index}`,
+                        fullName: idCard.fullName,
+                        gender: ['m', 'nam', 'male'].includes(idCard.sex?.toLowerCase()) ? 'Nam' : 'Nữ',
+                        dateOfBirth: idCard.dateOfBirth || 'N/A',
+                        issueDate: idCard.dateOfIssue || 'Chưa có thông tin',
+                        expireDate: idCard.dateOfExpiry || 'Chưa có thông tin',
+                        documentNumber: idCard.idCardNo || 'Chưa có thông tin',
+                        birthPlace: idCard.placeOfBirth || 'Chưa có thông tin',
+                        nationality: idCard.nationality || 'Chưa có thông tin',
+                        imageUrl: idCard.imageUrl
+                    }));
+
+                    setCustomersEtour(customerDataFromIdCards);
+                }
             } catch (error) {
                 setErrorIdCard('Đã xảy ra lỗi khi tải dữ liệu Passport.');
             } finally {
@@ -151,13 +211,34 @@ const IdCardRead = () => {
     }, [fileArray]);
 
     useEffect(() => {
-        if (!bookingId) return;
+        if (!bookingParams) return;
         let isMounted = true;
         const getListCustomers = async () => {
             try {
-                const response = await axios.get(`http://108.108.110.73:1212/api/Customers/get-list-customers-by-bookingId/${bookingId}`);
+                const response = await axios.get(`https://beid-extract.vietravel.com/api/Customers/get-list-customers-by-bookingId/${bookingParams}`);
+                const customers = response.data.customerBooking;
+                if (customers && customers.length > 0) {
+                    const idCardData = response.data.customerBooking.map(customer => ({
+                        fullName: customer.fullName,
+                        nationality: customer.nationality,
+                        dateOfBirth: customer.dateOfBirth,
+                        sex: customer.sex === 'M' ? 'Nam' : 'Nữ',
+                        dateOfIssue: customer.dateOfIssue,
+                        placeOfIssue: customer.placeOfIssue,
+                        idCardNo: customer.idCardNo,
+                        placeOfBirth: customer.placeOfBirth,
+                        dateOfExpiry: customer.dateOfExpiry,
+                        issuingAuthority: customer.issuingAuthority,
+                        imageUrl: customer.imageURL,
+                    }));
+                    setCustomersIdCard(idCardData);
+                } else {
+                    setError("Không có thông tin khách hàng trong CCCD/CMND.");
+                }
                 if (isMounted) {
                     setListCustomers(response.data.customerBooking);
+                    const dbImages = customers.map(customer => customer.imageURL).filter(url => !!url);
+                    setPreviewImage(prevImages => [...dbImages, ...prevImages]);
                 }
             } catch (err) {
                 setError('Đã xảy ra lỗi khi tải dữ liệu khách hàng.');
@@ -169,7 +250,7 @@ const IdCardRead = () => {
         return () => {
             isMounted = false;
         };
-    }, [bookingId]);
+    }, [bookingParams]);
 
     //#region Merge customers
     useEffect(() => {
@@ -177,48 +258,97 @@ const IdCardRead = () => {
             let updatedListCustomers = [...listCustomers];
             let mergedData = [];
 
-            customersIdCard.forEach(idCardCustomer => {
-                const indexInListCustomers = updatedListCustomers.findIndex(
-                    customer => customer.idCardNo === idCardCustomer.idCardNo
-                );
+            //* Trường hợp không có dữ liệu eTour nhưng có dữ liệu Passport
+            if (customersEtour.length === 0 && customersIdCard.length > 0) {
+                const newMergedData = customersIdCard.map(idCardCustomer => ({
+                    bookingCustomer: {
+                        memberId: `extracted-${idCardCustomer.idCardNo}`,
+                        fullName: idCardCustomer.fullName,
+                        gender: ['m', 'nam', 'male'].includes(idCardCustomer.sex?.toLowerCase()) ? 'Nam' : 'Nữ',
+                        dateOfBirth: idCardCustomer.dateOfBirth || 'N/A',
+                        issueDate: idCardCustomer.dateOfIssue || 'Chưa có thông tin',
+                        expireDate: idCardCustomer.dateOfExpiry || 'Chưa có thông tin',
+                        documentNumber: idCardCustomer.idCardNo || 'Chưa có thông tin',
+                        birthPlace: idCardCustomer.placeOfBirth || 'Chưa có thông tin',
+                        nationality: idCardCustomer.nationality || 'Chưa có thông tin',
+                        imageUrl: idCardCustomer.imageUrl
+                    },
+                    idCardCustomer: idCardCustomer,
+                    imageUrl: idCardCustomer.imageUrl
+                }));
 
-                if (indexInListCustomers !== -1) {
-                    updatedListCustomers[indexInListCustomers] = {
-                        ...updatedListCustomers[indexInListCustomers],
-                        ...idCardCustomer
-                    };
+                mergedData = [...mergedData, ...newMergedData];
+                setMergedCustomers(mergedData);
+                return;
+            }
+
+            //* Trường hợp có cả eTour và passport
+            customersEtour.forEach(etourCustomer => {
+                const matchedIdCardCustomer = customersIdCard.find(
+                    idCardCustomer => idCardCustomer.idCardNo === etourCustomer.documentNumber
+                )
+
+                if (matchedIdCardCustomer) {
+                    updatedListCustomers.push(matchedIdCardCustomer);
+                    mergedData.push({
+                        bookingCustomer: {
+                            ...etourCustomer,
+                            fullName: matchedIdCardCustomer.fullName || etourCustomer.fullName,
+                            gender: ['m', 'nam', 'male'].includes(matchedIdCardCustomer.sex?.toLowerCase()) ? 'Nam' : 'Nữ',
+                            dateOfBirth: matchedIdCardCustomer.dateOfBirth || etourCustomer.dateOfBirth,
+                            issueDate: matchedIdCardCustomer.dateOfIssue || etourCustomer.issueDate,
+                            expireDate: matchedIdCardCustomer.dateOfExpiry || etourCustomer.expireDate,
+                            documentNumber: matchedIdCardCustomer.idCardNo || etourCustomer.documentNumber,
+                            birthPlace: matchedIdCardCustomer.placeOfBirth || etourCustomer.birthPlace,
+                            nationality: matchedIdCardCustomer.nationality || etourCustomer.nationality,
+                            imageUrl: matchedIdCardCustomer.imageUrl || etourCustomer.imageUrl,
+                        },
+                        idCardCustomer: matchedIdCardCustomer,
+                        imageUrl: matchedIdCardCustomer.imageUrl
+                    });
                 } else {
-                    updatedListCustomers.push(idCardCustomer);
+                    mergedData.push({
+                        bookingCustomer: etourCustomer,
+                        idCardCustomer: null,
+                        imageUrl: null,
+                    });
                 }
             });
 
-            customersEtour.forEach(etourCustomer => {
-                const matchedIdCardCustomer = updatedListCustomers.find(
-                    idCardCustomer => idCardCustomer.idCardNo === etourCustomer.documentNumber
-                );
-
-                mergedData.push({
-                    bookingCustomer: etourCustomer,
-                    idCardCustomer: matchedIdCardCustomer || null,
-                    imageUrl: matchedIdCardCustomer ? matchedIdCardCustomer.imageUrl : null
-                });
-            });
-
-            const unmatchedPassportCustomers = updatedListCustomers.filter(
+            const unmatchedIdCardCustomers = customersIdCard.filter(
                 idCardCustomer => !customersEtour.some(
                     etourCustomer => etourCustomer.documentNumber === idCardCustomer.idCardNo
                 )
             );
 
-            unmatchedPassportCustomers.forEach(idCardCustomer => {
+            unmatchedIdCardCustomers.forEach(idCardCustomer => {
+                updatedListCustomers.push(idCardCustomer);
                 mergedData.push({
-                    bookingCustomer: null,
+                    bookingCustomer: {
+                        memberId: `extracted-${idCardCustomer.idCardNo}`,
+                        fullName: idCardCustomer.fullName,
+                        gender: ['m', 'nam', 'male'].includes(idCardCustomer.sex?.toLowerCase()) ? 'Nam' : 'Nữ',
+                        dateOfBirth: idCardCustomer.dateOfBirth || 'N/A',
+                        issueDate: idCardCustomer.dateOfIssue || 'Chưa có thông tin',
+                        expireDate: idCardCustomer.dateOfExpiry || 'Chưa có thông tin',
+                        documentNumber: idCardCustomer.idCardNo || 'Chưa có thông tin',
+                        birthPlace: idCardCustomer.placeOfBirth || 'Chưa có thông tin',
+                        nationality: idCardCustomer.nationality || 'Chưa có thông tin',
+                        imageUrl: idCardCustomer.imageUrl
+                    },
                     idCardCustomer: idCardCustomer,
                     imageUrl: idCardCustomer.imageUrl
                 });
             });
 
-            setMergedCustomers(mergedData);
+            setMergedCustomers(prevMergedCustomers => {
+                const uniqueData = mergedData.filter(newItem =>
+                    !prevMergedCustomers.some(existingItem => existingItem.idCardCustomer?.idCardNo === newItem.idCardCustomer?.idCardNo)
+                );
+
+                return [...prevMergedCustomers, ...uniqueData];
+            })
+
         }
     }, [customersEtour, listCustomers, customersIdCard]);
 
@@ -226,7 +356,7 @@ const IdCardRead = () => {
     //#endregion
 
     //#region Save API
-    const handleSave = async () => {
+    const handleSave = async (editedCustomer) => {
         try {
             const queryParams = new URLSearchParams(window.location.search);
             const bookingId = queryParams.get('bookingId');
@@ -237,24 +367,32 @@ const IdCardRead = () => {
                 return;
             }
 
+            // const payload = {
+            //     extractedData: customersIdCard.map((customer) => ({
+            //         type: customer.type,
+            //         fullName: customer.fullName,
+            //         nationality: customer.nationality,
+            //         dateOfBirth: customer.dateOfBirth,
+            //         sex: customer.sex,
+            //         dateOfIssue: customer.dateOfIssue,
+            //         placeOfIssue: customer.placeOfIssue,
+            //         passportNo: customer.passportNo,
+            //         placeOfBirth: customer.placeOfBirth,
+            //         idCardNo: customer.idCardNo,
+            //         dateOfExpiry: customer.dateOfExpiry,
+            //         issuingAuthority: customer.issuingAuthority,
+            //         bookingId: bookingId
+            //     }))
+            // };
+
             const payload = {
-                extractedData: customersIdCard.map((customer) => ({
-                    type: customer.type,
-                    fullName: customer.fullName,
-                    nationality: customer.nationality,
-                    dateOfBirth: customer.dateOfBirth,
-                    sex: customer.sex,
-                    dateOfIssue: customer.dateOfIssue,
-                    placeOfIssue: customer.placeOfIssue,
-                    passportNo: customer.passportNo,
-                    placeOfBirth: customer.placeOfBirth,
-                    idCardNo: customer.idCardNo,
-                    dateOfExpiry: customer.dateOfExpiry,
-                    issuingAuthority: customer.issuingAuthority,
-                    bookingId: bookingId
+                extractedData: customersEtour.map((customer) => ({
+                    ...customer,
+                    ...editedCustomer // cập nhật thông tin từ editedCustomer
                 }))
             };
-            const response = await axios.post(`http://108.108.110.73:1212/api/Customers/save?bookingId=${bookingId}`, payload, {
+
+            const response = await axios.post(`https://beid-extract.vietravel.com/api/Customers/save?bookingId=${bookingId}`, payload, {
                 headers: {
                     'Accept': '*/*',
                     'Content-Type': 'application/json'
@@ -264,26 +402,20 @@ const IdCardRead = () => {
             if (response.status === 200) {
                 setToastMessage('Lưu thông tin khách hàng thành công!');
                 setToastType('success');
-
                 setTimeout(() => {
                     setToastMessage('');
-                }, 3000);
+                    window.location.reload(); // Tải lại trang sau khi lưu thành công
+                }, 1500);
             } else {
                 setToastMessage('Có lỗi ở hệ thống khi lưu thông tin khách hàng.');
                 setToastType('error');
+                setTimeout(() => setToastMessage(''), 1500);
 
-                setTimeout(() => {
-                    setToastMessage('');
-                }, 3000);
             }
-
         } catch (error) {
             setToastMessage('Đã có dữ liệu của CCCD/CMND trong hệ thống.');
             setToastType('error');
-
-            setTimeout(() => {
-                setToastMessage('');
-            }, 3000);
+            setTimeout(() => setToastMessage(''), 1500);
         }
     }
     //#endregion
@@ -319,10 +451,6 @@ const IdCardRead = () => {
 
     const handleImageClick = (imageUrl) => {
         setSelectedImage(imageUrl);
-    };
-
-    const closeModal = () => {
-        setSelectedImage(null);
     };
 
     const handleClose = () => {
@@ -421,10 +549,6 @@ const IdCardRead = () => {
 
     const handlePageChange = (pageNumber) => {
         setCurrentPage(pageNumber);
-        window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-        });
     };
     //#endregion
     return (
@@ -448,9 +572,7 @@ const IdCardRead = () => {
                             <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách eTour</h3>
                             <h3 className="font-semibold text-center text-2xl mb-2 mobile:text-lg mobile:uppercase">Danh sách CCCD/CMND</h3>
                         </div>
-                        <div className="flex justify-end mb-3">
-                            <p className="text-lg mobile:text-base">Tổng số khách eTour: <span className="font-semibold">{totalGuest} khách</span></p>
-                        </div>
+
                         <ButtonActions
                             loadingPassports={loadingIdCards}
                             handleSave={handleSave}
@@ -458,139 +580,28 @@ const IdCardRead = () => {
                             handleImageClick={handleImageClick}
                             previewImage={previewImage}
                             handleClose={handleClose}
+                            qrCodeUrl={qrCodeUrl}
                         />
                         <ToastMessageLayout toastMessage={toastMessage} toastType={toastType} />
                         {currentCustomers.length > 0 ? (
                             currentCustomers.map((customerPair, index) => {
                                 const etourCustomer = customerPair.bookingCustomer;
                                 const idCardCustomer = customerPair.idCardCustomer;
+                                const displayCustomer = etourCustomer || idCardCustomer;
+                                const imageUrl = customerPair.imageUrl || displayCustomer?.imageUrl;
+
                                 return (
                                     <div key={index} className="p-4 rounded-2xl grid grid-cols-2 gap-4 mobile:flex mobile:flex-col">
-                                        {loading ? (
-                                            <div className="flex flex-col justify-center items-center">
-                                                <div className="radial-progress" style={{ "--value": progress }} role="progressbar">{progress}%</div>
-                                                <p className='font-semibold flex justify-center items-center text-center mt-4'>Đang tải toàn bộ dữ liệu khách hàng...</p>
-                                            </div>
-                                        ) : error ? (
-                                            <div className="flex justify-center items-center mobile:flex-col">
-                                                <p className='font-semibold flex justify-center items-center text-center'>Đã có lỗi xảy ra ở phía hệ thống, vui lòng thử lại sau</p>
-                                                <Frown className='ml-2 w-6 mobile:mt-2' />
-                                            </div>
-                                        ) : (
-                                            <div>
-                                                <div className='p-4 rounded-xl border-2 border-solid relative'>
-                                                    {customerPair?.imageUrl ? (
-                                                        <>
-                                                            {loading ? (
-                                                                <div className="flex flex-col justify-center items-center">
-                                                                    <div className="radial-progress" style={{ "--value": progress }} role="progressbar">{progress}%</div>
-                                                                    <p className='font-semibold flex justify-center items-center text-center mt-4'>Đang tải toàn bộ dữ liệu khách hàng...</p>
-                                                                </div>
-                                                            ) : (
-                                                                <>
-                                                                    {activeCustomer === index ? (
-                                                                        <div>
-                                                                            <img src={customerPair?.imageUrl} alt="Customer Passport" className='rounded-xl w-1/2' />
-                                                                        </div>
-                                                                    ) : (
-                                                                        <>
-                                                                            <p className='font-bold'>Họ tên:
-                                                                                <span className={(idCardCustomer && cleanString(etourCustomer?.fullName) !== cleanString(idCardCustomer?.fullName)) ? "text-red-600" : ""}>
-                                                                                    &nbsp;{etourCustomer?.fullName || "Chưa có thông tin"}
-                                                                                </span>
-                                                                            </p>
-                                                                            <p>Giới tính:
-                                                                                <span className={(idCardCustomer && cleanString(etourCustomer?.gender) !== cleanString(formatGender(idCardCustomer?.sex))) ? "text-red-600" : ""}>
-                                                                                    &nbsp;{etourCustomer?.gender || "Chưa có thông tin"}
-                                                                                </span>
-                                                                            </p>
-                                                                            <p>Nơi sinh:
-                                                                                <span className={(idCardCustomer && cleanString(etourCustomer?.birthPlace) !== cleanString(idCardCustomer?.placeOfBirth)) ? "text-red-600" : ""}>
-                                                                                    &nbsp;{etourCustomer?.birthPlace || "Chưa có thông tin"}
-                                                                                </span>
-                                                                            </p>
-                                                                            <p>Quốc tịch:
-                                                                                <span className={(idCardCustomer && cleanString(etourCustomer?.nationality) !== cleanString(idCardCustomer?.nationality)) ? "text-red-600" : ""}>
-                                                                                    &nbsp;{etourCustomer?.nationality || "Chưa có thông tin"}
-                                                                                </span>
-                                                                            </p>
-                                                                            <p className='font-bold'>Số Passport:
-                                                                                <span className={(idCardCustomer && etourCustomer?.documentNumber !== idCardCustomer?.passportNo) ? "text-red-600" : ""}>
-                                                                                    &nbsp;{etourCustomer?.documentNumber || "Chưa có thông tin"}
-                                                                                </span>
-                                                                            </p>
-                                                                            <p>Ngày sinh:
-                                                                                <span className={(idCardCustomer && formatDate(etourCustomer?.dateOfBirth) !== formatDate(idCardCustomer?.dateOfBirth)) ? "text-red-600" : ""}>
-                                                                                    &nbsp;{formatDate(etourCustomer?.dateOfBirth) || "Chưa có thông tin"}
-                                                                                </span>
-                                                                            </p>
-                                                                            <p>Ngày cấp:
-                                                                                <span className={(idCardCustomer && formatDate(etourCustomer?.issueDate) !== formatDate(idCardCustomer?.dateOfIssue)) ? "text-red-600" : ""}>
-                                                                                    &nbsp;{formatDate(etourCustomer?.issueDate) || "Chưa có thông tin"}
-                                                                                </span>
-                                                                            </p>
-                                                                            <p>Ngày hết hạn:
-                                                                                <span className={(idCardCustomer && formatDate(etourCustomer?.expireDate) !== formatDate(idCardCustomer?.dateOfExpiry)) ? "text-red-600" : ""}>
-                                                                                    &nbsp;{formatDate(etourCustomer?.expireDate) || "Chưa có thông tin"}
-                                                                                </span>
-                                                                            </p>
-                                                                        </>
-                                                                    )}
-                                                                </>
-                                                            )}
-                                                            <div className='flex justify-end'>
-                                                                <button className='btn btn-info rounded-xl' onClick={() => handleShowImage(index)}>
-                                                                    {activeCustomer === index ? 'Ẩn hình ảnh' : 'Xem hình ảnh'}
-                                                                </button>
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <p className='font-bold'>Họ tên:
-                                                                <span className={(idCardCustomer && cleanString(etourCustomer?.fullName) !== cleanString(idCardCustomer?.fullName)) ? "text-red-600" : ""}>
-                                                                    &nbsp;{etourCustomer?.fullName || "Chưa có thông tin"}
-                                                                </span>
-                                                            </p>
-                                                            <p>Giới tính:
-                                                                <span className={(idCardCustomer && cleanString(etourCustomer?.gender) !== cleanString(formatGender(idCardCustomer?.sex))) ? "text-red-600" : ""}>
-                                                                    &nbsp;{etourCustomer?.gender || "Chưa có thông tin"}
-                                                                </span>
-                                                            </p>
-                                                            <p>Nơi sinh:
-                                                                <span className={(idCardCustomer && cleanString(etourCustomer?.birthPlace) !== cleanString(idCardCustomer?.placeOfBirth)) ? "text-red-600" : ""}>
-                                                                    &nbsp;{etourCustomer?.birthPlace || "Chưa có thông tin"}
-                                                                </span>
-                                                            </p>
-                                                            <p>Quốc tịch:
-                                                                <span className={(idCardCustomer && cleanString(etourCustomer?.nationality) !== cleanString(idCardCustomer?.nationality)) ? "text-red-600" : ""}>
-                                                                    &nbsp;{etourCustomer?.nationality || "Chưa có thông tin"}
-                                                                </span>
-                                                            </p>
-                                                            <p className='font-bold'>Số Passport:
-                                                                <span className={(idCardCustomer && etourCustomer?.documentNumber !== idCardCustomer?.passportNo) ? "text-red-600" : ""}>
-                                                                    &nbsp;{etourCustomer?.documentNumber || "Chưa có thông tin"}
-                                                                </span>
-                                                            </p>
-                                                            <p>Ngày sinh:
-                                                                <span className={(idCardCustomer && formatDate(etourCustomer?.dateOfBirth) !== formatDate(idCardCustomer?.dateOfBirth)) ? "text-red-600" : ""}>
-                                                                    &nbsp;{formatDate(etourCustomer?.dateOfBirth) || "Chưa có thông tin"}
-                                                                </span>
-                                                            </p>
-                                                            <p>Ngày cấp:
-                                                                <span className={(idCardCustomer && formatDate(etourCustomer?.issueDate) !== formatDate(idCardCustomer?.dateOfIssue)) ? "text-red-600" : ""}>
-                                                                    &nbsp;{formatDate(etourCustomer?.issueDate) || "Chưa có thông tin"}
-                                                                </span>
-                                                            </p>
-                                                            <p>Ngày hết hạn:
-                                                                <span className={(idCardCustomer && formatDate(etourCustomer?.expireDate) !== formatDate(idCardCustomer?.dateOfExpiry)) ? "text-red-600" : ""}>
-                                                                    &nbsp;{formatDate(etourCustomer?.expireDate) || "Chưa có thông tin"}
-                                                                </span>
-                                                            </p>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
+                                        <CustomersEtourLayout
+                                            key={index}
+                                            customerPair={customerPair}
+                                            index={index}
+                                            activeCustomer={activeCustomer}
+                                            setActiveCustomer={setActiveCustomer}
+                                            loading={loading}
+                                            progress={progress}
+                                        />
+
                                         {loadingIdCards ? (
                                             <div className="flex flex-col justify-center items-center">
                                                 <div className="radial-progress" style={{ "--value": progress }} role="progressbar">{progress}%</div>
