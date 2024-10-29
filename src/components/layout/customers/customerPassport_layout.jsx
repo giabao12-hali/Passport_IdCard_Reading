@@ -2,15 +2,26 @@
 
 import RecylingBinIcon from "../icon/recyclingbin";
 import {Save} from 'lucide-react'
-import {useState} from "react";
+import React, {useState} from "react";
+import ToastMessageLayout from "../toast.jsx";
 
 /* eslint-disable react/prop-types */
 const PassportCard = ({passportCustomer, etourCustomer, loadingPassports, progress, handleDeleteObject, onSave}) => {
+    const [toastMessage, setToastMessage] = useState('');
+    const [toastType, setToastType] = useState('');
+
     const [editedCustomer, setEditedCustomer] = useState({...passportCustomer});
     const [isEditing, setIsEditing] = useState(false);
 
     const handleInputChange = (e, field) => {
         setEditedCustomer((prev) => ({...prev, [field]: e.target.value}));
+    }
+
+    const handleSaveInterface = () => {
+        setIsEditing(false);
+        setToastMessage('Lưu thông tin khách hàng thành công!');
+        setToastType('success');
+        setTimeout(() => setToastMessage(''), 2000);
     }
 
     const handleSave = () => {
@@ -57,6 +68,7 @@ const PassportCard = ({passportCustomer, etourCustomer, loadingPassports, progre
     };
     return (
         <div>
+            <ToastMessageLayout toastMessage={toastMessage} toastType={toastType}/>
             {loadingPassports ? (
                 <div className="flex flex-col justify-center items-center">
                     <div className="radial-progress" style={{"--value": progress}} role="progressbar">{progress}%</div>
@@ -138,7 +150,7 @@ const PassportCard = ({passportCustomer, etourCustomer, loadingPassports, progre
                                 </p>
                                 <div className='flex justify-end gap-4'>
                                     <div className="tooltip" data-tip="Lưu thông tin chỉnh sửa">
-                                        <button className="btn btn-info rounded-xl" onClick={handleSave}>
+                                        <button className="btn btn-info rounded-xl" onClick={handleSaveInterface}>
                                             <Save className="text-white size-5"/>
                                         </button>
                                     </div>
