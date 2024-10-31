@@ -136,8 +136,8 @@ const CustomersEtourLayout = ({ customerPair, index, activeCustomer, setActiveCu
                                         </span>
                                     </p>
                                     <p className='font-bold'>Số Passport:
-                                        <span className={(passportCustomer && displayCustomer?.documentNumber !== passportCustomer?.passportNo) ? "text-red-600" : ""}>
-                                            &nbsp;{displayCustomer?.documentNumber || "Chưa có thông tin"}
+                                        <span className={(passportCustomer && displayCustomer?.visaInfor.documentNumber !== passportCustomer?.passportNo) ? "text-red-600" : ""}>
+                                            &nbsp;{displayCustomer?.visaInfor.documentNumber || "Chưa có thông tin"}
                                         </span>
                                     </p>
                                     <p>Ngày sinh:
@@ -157,9 +157,9 @@ const CustomersEtourLayout = ({ customerPair, index, activeCustomer, setActiveCu
                                     </p>
                                     <p className="font-bold">Số CCCD/CMND:&nbsp;
                                         <span
-                                            className={(passportCustomer && displayCustomer?.documentNumber !== passportCustomer?.idCardNo) ? "text-red-600" : ""}
+                                            className={(passportCustomer && displayCustomer?.idCardInfor.documentNumber !== passportCustomer?.idCardNo) ? "text-red-600" : ""}
                                         >
-                                            {displayCustomer?.documentNumber || "Chưa có thông tin"}
+                                            {displayCustomer?.idCardInfor.documentNumber || "Chưa có thông tin"}
                                         </span>
                                     </p>
                                 </>

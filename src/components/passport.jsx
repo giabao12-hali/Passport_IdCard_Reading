@@ -297,12 +297,11 @@ const PassportRead = () => {
                         dateOfBirth: passportCustomer.dateOfBirth || 'N/A',
                         issueDate: passportCustomer.dateOfIssue || 'Chưa có thông tin',
                         expireDate: passportCustomer.dateOfExpiry || 'Chưa có thông tin',
-                        // documentNumber: passportCustomer.passportNo || 'Chưa có thông tin',
                         visaInfor: {
-                            documentNumber: passportCustomer.passportNo || null // Lưu đè documentNumber với passportNo
+                            documentNumber: passportCustomer.passportNo || null
                         },
                         idCardInfor: {
-                            documentNumber: passportCustomer.idCardNo || null // Lưu đè documentNumber của idCardInfor với idCardNo
+                            documentNumber: passportCustomer.idCardNo || null
                         },
                         birthPlace: passportCustomer.placeOfBirth || 'Chưa có thông tin',
                         nationality: passportCustomer.nationality || 'Chưa có thông tin',
@@ -577,6 +576,20 @@ const PassportRead = () => {
         window.parent.postMessage(message, '*');
     };
 
+    const handleCopyLink = async () => {
+        const currentUrl = window.location.href;
+        try {
+            await navigator.clipboard.writeText(currentUrl);
+            setToastMessage('Đã copy link thành công!');
+            setToastType('success');
+            setTimeout(() => setToastMessage(''), 1500);
+        } catch (err) {
+            setToastMessage('Đã xảy ra lỗi khi copy link.');
+            setToastType('error');
+            setTimeout(() => setToastMessage(''), 1500);
+        }
+    }
+
     //#endregion
 
     //#region Pagination
@@ -612,6 +625,11 @@ const PassportRead = () => {
                         <h3 className="font-bold text-lg">Mã QR Code</h3>
                         <div className="flex justify-center py-4">
                             <QRCode value={qrCodeUrl} />
+                        </div>
+                        <div className='flex justify-center items-center mt-2'>
+                            <p onClick={handleCopyLink} className='cursor-pointer font-semibold underline'>
+                                Nhấn vào đây kể copy link!
+                            </p>
                         </div>
                     </div>
                     <form method="dialog" className="modal-backdrop">
