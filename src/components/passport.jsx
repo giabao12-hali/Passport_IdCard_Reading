@@ -64,36 +64,6 @@ const PassportRead = () => {
     }
     //#endregion
 
-    //#region Cloudinary
-    const cld = new Cloudinary({
-        cloud: {
-            cloudName: 'dtjipla6s',
-        },
-    });
-
-    const uploadToCloudinary = async (file) => {
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('upload_preset', 'passportPresets');
-
-        //* Upload ảnh lên Cloudinary
-        const response = await axios.post(
-            `https://api.cloudinary.com/v1_1/dtjipla6s/image/upload`,
-            formData
-        );
-
-        const publicId = response.data.public_id;
-
-        //* Resize ảnh
-        const image = cld.image(publicId)
-            .resize(scale().width(1000).height(1000))
-            .format('auto');
-
-        return image.toURL();
-    };
-    //#endregion
-
-
     //#region API
 
     //#region Call API
@@ -138,7 +108,12 @@ const PassportRead = () => {
                     dateOfBirth: member.visaInfor?.dateOfBirth || 'N/A',
                     issueDate: member.visaInfor?.issueDate || 'Chưa có thông tin',
                     expireDate: member.visaInfor?.expireDate || 'Chưa có thông tin',
-                    documentNumber: member.visaInfor?.documentNumber || 'Chưa có thông tin',
+                    visaInfor: {
+                        documentNumber: member.visaInfor?.documentNumber || 'Chưa có thông tin',
+                    },
+                    idCardInfor: {
+                        documentNumber: member.idCardInfor?.documentNumber || 'Chưa có thông tin',
+                    },
                     birthPlace: member.birthPlace || 'Chưa có thông tin',
                     address: member.address || 'Chưa có thông tin',
                     nationality: member.nationality || 'Chưa có thông tin',
@@ -167,18 +142,11 @@ const PassportRead = () => {
 
                 const formData = new FormData();
                 fileArray.forEach(file => {
-                    formData.append('imageFiles', file);
-                    formData.append('languageHint', 'en');
+                    formData.append('files', file);
                 });
 
-                //* Cloudinary
-                const cloudinaryPromises = fileArray.map(file => uploadToCloudinary(file));
-                const cloudinaryUrls = await Promise.all(cloudinaryPromises);
-
-                //* Vision Google API
-                const visionResponse = await axios.post('https://beid-extract.vietravel.com/api/Vision/upload?language=en', formData, {
+                const response = await axios.post('http://ocr-images.vietravel.com:8081/extract-o-imgs', formData, {
                     headers: {
-                        'Access-Control-Allow-Origin': 'https://beid-extract.vietravel.com',
                         'Content-Type': 'multipart/form-data'
                     },
                     onUploadProgress: (progressEvent) => {
@@ -187,21 +155,16 @@ const PassportRead = () => {
                     }
                 });
 
-                const extractedPassports = visionResponse.data.passports;
+                const extractedPassports = response.data;
                 if (!extractedPassports || extractedPassports.length === 0) {
                     throw new Error('Không có chuỗi JSON nào được trích xuất từ ảnh.');
                 }
 
-                const passportsData = extractedPassports.map((passport, index) => ({
-                    ...passport,
-                    imageUrl: cloudinaryUrls[index]
-                }));
+                setCustomersPassport(extractedPassports);
 
-                setCustomersPassport(passportsData);
-
-                //* Nếu không có dữ liệu eTour, dùng dữ liệu Passport
+                // Nếu không có dữ liệu eTour, hiển thị dữ liệu từ Passport
                 if (!customersEtour || customersEtour.length === 0) {
-                    const customerDataFromPassports = passportsData.map((passport, index) => ({
+                    const customerDataFromPassports = extractedPassports.map((passport, index) => ({
                         memberId: `extracted-${index}`,
                         fullName: passport.fullName,
                         gender: ['m', 'nam', 'male'].includes(passport.sex?.toLowerCase()) ? 'Nam' : 'Nữ',
@@ -209,6 +172,13 @@ const PassportRead = () => {
                         issueDate: passport.dateOfIssue || 'Chưa có thông tin',
                         expireDate: passport.dateOfExpiry || 'Chưa có thông tin',
                         documentNumber: passport.passportNo || 'Chưa có thông tin',
+                        visaInfor: {
+                            documentNumber: passport.passportNo || 'Chưa có thông tin'
+                        },
+                        idCardInfor: {
+                            documentNumber: passport.idCardNo || 'Chưa có thông tin'
+                        },
+                        // idCardNo: passport.idCardNo || 'Chưa có thông tin',
                         birthPlace: passport.placeOfBirth || 'Chưa có thông tin',
                         nationality: passport.nationality || 'Chưa có thông tin',
                         imageUrl: passport.imageUrl
@@ -230,6 +200,7 @@ const PassportRead = () => {
     }, [fileArray]);
 
 
+
     //#endregion
 
 
@@ -242,7 +213,11 @@ const PassportRead = () => {
 
         const getListCustomers = async () => {
             try {
-                const response = await axios.get(`https://beid-extract.vietravel.com/api/Customers/get-list-customers-by-bookingId/${bookingParams}`);
+                const response = await axios.get(`https://beid-extract.vietravel.com/api/Customers/get-list-customers-by-bookingId/${bookingParams}`, {
+                    headers: {
+                        'Access-Control-Allow-Origin': '*',
+                    },
+                });
                 const customers = response.data.customerBooking;
                 if (customers && customers.length > 0) {
                     const passportData = response.data.customerBooking.map(customer => ({
@@ -298,10 +273,10 @@ const PassportRead = () => {
                         issueDate: passportCustomer.dateOfIssue || 'Chưa có thông tin',
                         expireDate: passportCustomer.dateOfExpiry || 'Chưa có thông tin',
                         visaInfor: {
-                            documentNumber: passportCustomer.passportNo || null
+                            documentNumber: passportCustomer.passportNo || 'Chưa có thông tin' 
                         },
                         idCardInfor: {
-                            documentNumber: passportCustomer.idCardNo || null
+                            documentNumber: passportCustomer.idCardNo || 'Chưa có thông tin'
                         },
                         birthPlace: passportCustomer.placeOfBirth || 'Chưa có thông tin',
                         nationality: passportCustomer.nationality || 'Chưa có thông tin',
@@ -332,7 +307,13 @@ const PassportRead = () => {
                             dateOfBirth: matchedPassportCustomer.dateOfBirth || etourCustomer.dateOfBirth,
                             issueDate: matchedPassportCustomer.dateOfIssue || etourCustomer.issueDate,
                             expireDate: matchedPassportCustomer.dateOfExpiry || etourCustomer.expireDate,
-                            documentNumber: matchedPassportCustomer.passportNo || etourCustomer.documentNumber,
+                            // documentNumber: matchedPassportCustomer.passportNo || etourCustomer.documentNumber,
+                            visaInfor: {
+                                documentNumber: matchedPassportCustomer.passportNo || etourCustomer.documentNumber
+                            },
+                            idCardInfor: {
+                                documentNumber: matchedPassportCustomer.idCardNo || etourCustomer.idCardNo
+                            },
                             birthPlace: matchedPassportCustomer.placeOfBirth || etourCustomer.birthPlace,
                             nationality: matchedPassportCustomer.nationality || etourCustomer.nationality,
                             imageUrl: matchedPassportCustomer.imageUrl || etourCustomer.imageUrl,
@@ -366,7 +347,13 @@ const PassportRead = () => {
                         dateOfBirth: passportCustomer.dateOfBirth || 'N/A',
                         issueDate: passportCustomer.dateOfIssue || 'Chưa có thông tin',
                         expireDate: passportCustomer.dateOfExpiry || 'Chưa có thông tin',
-                        documentNumber: passportCustomer.passportNo || 'Chưa có thông tin',
+                        // documentNumber: passportCustomer.passportNo || 'Chưa có thông tin',
+                        visaInfor: {
+                            documentNumber: passportCustomer.passportNo || 'Chưa có thông tin'
+                        },
+                        idCardInfor: {
+                            documentNumber: passportCustomer.idCardNo || 'Chưa có thông tin'
+                        },
                         birthPlace: passportCustomer.placeOfBirth || 'Chưa có thông tin',
                         nationality: passportCustomer.nationality || 'Chưa có thông tin',
                         imageUrl: passportCustomer.imageUrl
@@ -406,29 +393,10 @@ const PassportRead = () => {
 
             const payload = {
                 extractedData: customersPassport.map((customer) => ({
-                    type: customer.type,
-                    fullName: customer.fullName,
-                    nationality: customer.nationality,
-                    dateOfBirth: customer.dateOfBirth,
-                    sex: formatGender(customer.sex),
-                    dateOfIssue: customer.dateOfIssue,
-                    placeOfIssue: customer.placeOfIssue,
-                    passportNo: customer.passportNo,
-                    placeOfBirth: customer.placeOfBirth,
-                    idCardNo: customer.idCardNo,
-                    dateOfExpiry: customer.dateOfExpiry,
-                    issuingAuthority: customer.issuingAuthority,
-                    imageUrl: customer.imageUrl,
-                    bookingId: bookingId,
+                    ...customer,
+                    bookingId: bookingId
                 }))
             };
-
-            // const payload = {
-            //     extractedData: customersPassport.map((customer) => ({
-            //         ...customer,
-            //         ...editedCustomer // cập nhật thông tin từ editedCustomer
-            //     }))
-            // };
 
             const response = await axios.post(`https://beid-extract.vietravel.com/api/Customers/save?bookingId=${bookingId}`, payload, {
                 headers: {
@@ -440,10 +408,10 @@ const PassportRead = () => {
             if (response.status === 200) {
                 setToastMessage('Lưu thông tin khách hàng thành công!');
                 setToastType('success');
-                // setTimeout(() => {
-                //     setToastMessage('');
-                //     window.location.reload(); // Tải lại trang sau khi lưu thành công
-                // }, 1500);
+                setTimeout(() => {
+                    setToastMessage('');
+                    window.location.reload(); 
+                }, 1500);
             } else {
                 setToastMessage('Có lỗi ở hệ thống khi lưu thông tin khách hàng.');
                 setToastType('error');
@@ -461,13 +429,6 @@ const PassportRead = () => {
     //#endregion
 
     //#region ================Function===================
-
-    //#region Check data
-    const cleanString = (str) => {
-        return str?.toLowerCase().replace(/[^a-z0-9]/g, '').trim() || '';
-    };
-    //#endregion
-
 
     //#region Picture
 

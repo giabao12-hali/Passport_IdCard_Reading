@@ -5,6 +5,7 @@ const CustomersEtourLayout = ({ customerPair, index, activeCustomer, setActiveCu
     const passportCustomer = customerPair.passportCustomer;
     const displayCustomer = etourCustomer || passportCustomer;
     const imageUrl = customerPair.imageUrl || displayCustomer?.imageUrl;
+    console.log('displayCustomer', displayCustomer);
 
     const formatGender = (gender) => {
         const lowerCaseGender = gender?.toLowerCase();
@@ -81,8 +82,8 @@ const CustomersEtourLayout = ({ customerPair, index, activeCustomer, setActiveCu
                                                 </span>
                                             </p>
                                             <p className='font-bold'>Số Passport:
-                                                <span className={(passportCustomer && displayCustomer?.visaInfor.documentNumber !== passportCustomer?.passportNo) ? "text-red-600" : ""}>
-                                                    &nbsp;{displayCustomer?.visaInfor.documentNumber || "Chưa có thông tin"}
+                                                <span className={(passportCustomer && displayCustomer?.visaInfor?.documentNumber !== passportCustomer?.passportNo) ? "text-red-600" : ""}>
+                                                    &nbsp;{displayCustomer?.visaInfor?.documentNumber || "Chưa có thông tin"}
                                                 </span>
                                             </p>
                                             <p>Ngày sinh:
@@ -101,8 +102,8 @@ const CustomersEtourLayout = ({ customerPair, index, activeCustomer, setActiveCu
                                                 </span>
                                             </p>
                                             <p className='font-bold'>Số CCCD/CMND:
-                                                <span className={(passportCustomer && displayCustomer?.idCardInfor.documentNumber !== passportCustomer?.idCardNo) ? "text-red-600" : ""}>
-                                                    &nbsp;{displayCustomer?.idCardInfor.documentNumber || "Chưa có thông tin"}
+                                                <span className={(passportCustomer && displayCustomer?.idCardInfor?.documentNumber !== passportCustomer?.idCardNo) ? "text-red-600" : ""}>
+                                                    &nbsp;{displayCustomer?.idCardInfor?.documentNumber || "Chưa có thông tin"}
                                                 </span>
                                             </p>
                                         </>
