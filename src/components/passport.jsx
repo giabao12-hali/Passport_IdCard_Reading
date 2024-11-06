@@ -7,8 +7,6 @@ import FooterLayout from './layout/footer';
 import PreviewImageLayout from './layout/preview_image';
 import ButtonActions from './layout/button_actions';
 import ToastMessageLayout from './layout/toast';
-import { Cloudinary } from '@cloudinary/url-gen/index';
-import { scale } from '@cloudinary/url-gen/actions/resize';
 import QRCode from 'react-qr-code';
 import CustomersEtourLayout from './layout/customers/customerEtour_layout';
 import PassportCard from './layout/customers/customerPassport_layout';
@@ -19,6 +17,14 @@ const PassportRead = () => {
     const [listCustomers, setListCustomers] = useState([]); //* mảng B list từ api
     const [customersPassport, setCustomersPassport] = useState([]); //* mảng C upload file
     const [mergedCustomers, setMergedCustomers] = useState([]); //* mảng D = B + C
+
+    const [newPassports, setNewPassports] = useState([]);
+
+    const [totalGuest, setTotalGuest] = useState(0);
+
+
+    const [isPassportSaved, setIsPassportSaved] = useState(false);
+
 
     // qrcode state
     const qrCodeUrl = window.location.href;
@@ -78,11 +84,12 @@ const PassportRead = () => {
 
                 if (!response.data.response) {
                     setCustomersEtour([]);
-
+                    setTotalGuest(0);
+                    return
                 }
-                if (response.data.response.bookingID) {
-                    setCustomersEtour(response.data.response.bookingID);
-                }
+                // if (response.data.response.bookingID) {
+                //     setCustomersEtour(response.data.response.bookingID);
+                // }
 
                 const { status, code, response: bookingResponse } = response.data;
                 if (status != 1 || code != 200 || !bookingResponse) {
@@ -90,6 +97,7 @@ const PassportRead = () => {
                     setError("Hệ thống đã xảy ra lỗi hoặc không có dữ liệu");
                     return;
                 }
+                setTotalGuest(bookingResponse.totalGuest);
 
                 if (!bookingResponse.memberInfors) {
                     setCustomersEtour([]);
@@ -118,7 +126,6 @@ const PassportRead = () => {
                     address: member.address || 'Chưa có thông tin',
                     nationality: member.nationality || 'Chưa có thông tin',
                 }));
-
                 setCustomersEtour(customerData);
             } catch (err) {
                 setError('Đã xảy ra lỗi khi tải dữ liệu eTour.');
@@ -140,12 +147,26 @@ const PassportRead = () => {
                 setLoadingPassports(true);
                 setError(null);
 
+                // Kiểm tra nếu totalGuest có giá trị hợp lệ
+                if (totalGuest && fileArray.length > totalGuest) {
+                    setToastMessage(`Bạn chỉ được upload tối đa ${totalGuest} hình ảnh.`);
+                    setTimeout(() => setToastMessage(''), 2000);
+                    setToastType('error');
+
+                    // Chỉ giữ lại số file tối đa được phép
+                    setFileArray(fileArray.slice(0, totalGuest));
+                    setLoadingPassports(false);
+                    return;
+                }
+
+                // Tạo FormData từ fileArray (giới hạn hoặc không giới hạn dựa trên totalGuest)
                 const formData = new FormData();
-                fileArray.forEach(file => {
+                fileArray.slice(0, totalGuest || fileArray.length).forEach(file => {
                     formData.append('files', file);
                 });
 
-                const response = await axios.post('http://ocr-images.vietravel.com:8081/extract-o-imgs', formData, {
+                // Gửi dữ liệu lên API
+                const response = await axios.post('https://ocr-images.vietravel.com/extract-o-imgs', formData, {
                     headers: {
                         'Content-Type': 'multipart/form-data'
                     },
@@ -160,32 +181,40 @@ const PassportRead = () => {
                     throw new Error('Không có chuỗi JSON nào được trích xuất từ ảnh.');
                 }
 
-                setCustomersPassport(extractedPassports);
-
+                // setCustomersPassport(extractedPassports);
                 // Nếu không có dữ liệu eTour, hiển thị dữ liệu từ Passport
-                if (!customersEtour || customersEtour.length === 0) {
-                    const customerDataFromPassports = extractedPassports.map((passport, index) => ({
-                        memberId: `extracted-${index}`,
-                        fullName: passport.fullName,
-                        gender: ['m', 'nam', 'male'].includes(passport.sex?.toLowerCase()) ? 'Nam' : 'Nữ',
-                        dateOfBirth: passport.dateOfBirth || 'N/A',
-                        issueDate: passport.dateOfIssue || 'Chưa có thông tin',
-                        expireDate: passport.dateOfExpiry || 'Chưa có thông tin',
-                        documentNumber: passport.passportNo || 'Chưa có thông tin',
-                        visaInfor: {
-                            documentNumber: passport.passportNo || 'Chưa có thông tin'
-                        },
-                        idCardInfor: {
-                            documentNumber: passport.idCardNo || 'Chưa có thông tin'
-                        },
-                        // idCardNo: passport.idCardNo || 'Chưa có thông tin',
-                        birthPlace: passport.placeOfBirth || 'Chưa có thông tin',
-                        nationality: passport.nationality || 'Chưa có thông tin',
+                // if (!customersEtour || customersEtour.length === 0) {
+                const customerDataFromPassports = extractedPassports.map((passport, index) => {
+                    return {
+                        bookingCustomer: null,
+                        passportCustomer: passport,
                         imageUrl: passport.imageUrl
-                    }));
+                    }
+                    // return {
+                    //     memberId: `extracted-${index}`,
+                    //     fullName: passport.fullName,
+                    //     gender: ['m', 'nam', 'male'].includes(passport.sex?.toLowerCase()) ? 'Nam' : 'Nữ',
+                    //     dateOfBirth: passport.dateOfBirth || 'N/A',
+                    //     issueDate: passport.dateOfIssue || 'Chưa có thông tin',
+                    //     expireDate: passport.dateOfExpiry || 'Chưa có thông tin',
+                    //     visaInfor: {
+                    //         documentNumber: passport.passportNo || 'Chưa có thông tin',
+                    //         issueDate: passport.dateOfIssue || 'Chưa có thông tin',
+                    //         expireDate: passport.dateOfExpiry || 'Chưa có thông tin'
+                    //     },
+                    //     idCardInfor: {
+                    //         documentNumber: passport.idCardNo || 'Chưa có thông tin',
+                    //         issueDate: passport.dateOfIssue || 'Chưa có thông tin',
+                    //         expireDate: passport.dateOfExpiry || 'Chưa có thông tin'
+                    //     },
+                    //     birthPlace: passport.placeOfBirth || 'Chưa có thông tin',
+                    //     nationality: passport.nationality || 'Chưa có thông tin',
+                    //     imageUrl: passport.imageUrl
+                    // }
+                });
 
-                    setCustomersEtour(customerDataFromPassports);
-                }
+                setNewPassports(customerDataFromPassports);
+                // }
 
             } catch (error) {
                 setError('Đã xảy ra lỗi khi tải dữ liệu Passport.');
@@ -197,9 +226,7 @@ const PassportRead = () => {
         if (fileArray.length > 0) {
             fetchPassportData();
         }
-    }, [fileArray]);
-
-
+    }, [fileArray, totalGuest]);
 
     //#endregion
 
@@ -258,32 +285,15 @@ const PassportRead = () => {
 
     //#region Merge customers
     useEffect(() => {
-        if (customersEtour.length > 0 || listCustomers.length > 0 || customersPassport.length > 0) {
-            let updatedListCustomers = [...listCustomers];
+        if (customersEtour.length > 0 || customersPassport.length > 0) {
             let mergedData = [];
 
             //* Trường hợp không có dữ liệu eTour nhưng có dữ liệu Passport
             if (customersEtour.length === 0 && customersPassport.length > 0) {
                 const newMergedData = customersPassport.map(passportCustomer => ({
-                    bookingCustomer: {
-                        memberId: `extracted-${passportCustomer.passportNo}`,
-                        fullName: passportCustomer.fullName,
-                        gender: ['m', 'nam', 'male'].includes(passportCustomer.sex?.toLowerCase()) ? 'Nam' : 'Nữ',
-                        dateOfBirth: passportCustomer.dateOfBirth || 'N/A',
-                        issueDate: passportCustomer.dateOfIssue || 'Chưa có thông tin',
-                        expireDate: passportCustomer.dateOfExpiry || 'Chưa có thông tin',
-                        visaInfor: {
-                            documentNumber: passportCustomer.passportNo || 'Chưa có thông tin' 
-                        },
-                        idCardInfor: {
-                            documentNumber: passportCustomer.idCardNo || 'Chưa có thông tin'
-                        },
-                        birthPlace: passportCustomer.placeOfBirth || 'Chưa có thông tin',
-                        nationality: passportCustomer.nationality || 'Chưa có thông tin',
-                        imageUrl: passportCustomer.imageUrl
-                    },
+                    bookingCustomer: null, // Đảm bảo không có thông tin eTour
                     passportCustomer: passportCustomer,
-                    imageUrl: passportCustomer.imageUrl
+                    imageUrl: passportCustomer.imageUrl // Chỉ lấy hình ảnh từ passport
                 }));
 
                 mergedData = [...mergedData, ...newMergedData];
@@ -291,14 +301,13 @@ const PassportRead = () => {
                 return;
             }
 
-            //* Trường hợp có cả eTour và passport
+            //* Trường hợp có cả eTour và Passport
             customersEtour.forEach(etourCustomer => {
                 const matchedPassportCustomer = customersPassport.find(
                     passportCustomer => passportCustomer.passportNo === etourCustomer.documentNumber
                 );
 
                 if (matchedPassportCustomer) {
-                    updatedListCustomers.push(matchedPassportCustomer);
                     mergedData.push({
                         bookingCustomer: {
                             ...etourCustomer,
@@ -307,7 +316,6 @@ const PassportRead = () => {
                             dateOfBirth: matchedPassportCustomer.dateOfBirth || etourCustomer.dateOfBirth,
                             issueDate: matchedPassportCustomer.dateOfIssue || etourCustomer.issueDate,
                             expireDate: matchedPassportCustomer.dateOfExpiry || etourCustomer.expireDate,
-                            // documentNumber: matchedPassportCustomer.passportNo || etourCustomer.documentNumber,
                             visaInfor: {
                                 documentNumber: matchedPassportCustomer.passportNo || etourCustomer.documentNumber
                             },
@@ -325,7 +333,7 @@ const PassportRead = () => {
                     mergedData.push({
                         bookingCustomer: etourCustomer,
                         passportCustomer: null,
-                        imageUrl: null
+                        imageUrl: null // Không có ảnh khi chỉ có dữ liệu eTour
                     });
                 }
             });
@@ -338,49 +346,25 @@ const PassportRead = () => {
             );
 
             unmatchedPassportCustomers.forEach(passportCustomer => {
-                updatedListCustomers.push(passportCustomer);
                 mergedData.push({
-                    bookingCustomer: {
-                        memberId: `extracted-${passportCustomer.passportNo}`,
-                        fullName: passportCustomer.fullName,
-                        gender: ['m', 'nam', 'male'].includes(passportCustomer.sex?.toLowerCase()) ? 'Nam' : 'Nữ',
-                        dateOfBirth: passportCustomer.dateOfBirth || 'N/A',
-                        issueDate: passportCustomer.dateOfIssue || 'Chưa có thông tin',
-                        expireDate: passportCustomer.dateOfExpiry || 'Chưa có thông tin',
-                        // documentNumber: passportCustomer.passportNo || 'Chưa có thông tin',
-                        visaInfor: {
-                            documentNumber: passportCustomer.passportNo || 'Chưa có thông tin'
-                        },
-                        idCardInfor: {
-                            documentNumber: passportCustomer.idCardNo || 'Chưa có thông tin'
-                        },
-                        birthPlace: passportCustomer.placeOfBirth || 'Chưa có thông tin',
-                        nationality: passportCustomer.nationality || 'Chưa có thông tin',
-                        imageUrl: passportCustomer.imageUrl
-                    },
+                    bookingCustomer: null, // Không có etourCustomer, giữ nguyên null
                     passportCustomer: passportCustomer,
-                    imageUrl: passportCustomer.imageUrl
+                    imageUrl: passportCustomer.imageUrl // Chỉ lấy ảnh từ passport
                 });
             });
 
-            // Cập nhật lại mergedCustomers với dữ liệu mới mà không sao chép dữ liệu cũ
-            setMergedCustomers(prevMergedCustomers => {
-                // Lọc ra những dữ liệu chưa có trong mergedCustomers
-                const uniqueData = mergedData.filter(newItem =>
-                    !prevMergedCustomers.some(existingItem => existingItem.passportCustomer?.passportNo === newItem.passportCustomer?.passportNo)
-                );
-
-                // Trả về mergedCustomers mới, kết hợp dữ liệu cũ và dữ liệu mới
-                return [...prevMergedCustomers, ...uniqueData];
-            });
+            setMergedCustomers(mergedData);
         }
-    }, [customersEtour, listCustomers, customersPassport]);
+    }, [customersEtour, customersPassport]);
+
+
+
 
 
     //#endregion
 
     //#region Save API
-    const handleSave = async (editedCustomer) => {
+    const handleSave = async () => {
         try {
             const queryParams = new URLSearchParams(window.location.search);
             const bookingId = queryParams.get('bookingId');
@@ -392,8 +376,12 @@ const PassportRead = () => {
             }
 
             const payload = {
-                extractedData: customersPassport.map((customer) => ({
-                    ...customer,
+                // extractedData: customersPassport.map((customer) => ({
+                //     ...customer,
+                //     bookingId: bookingId
+                // }))
+                extractedData: newPassports.map((customer) => ({
+                    ...customer.passportCustomer,
                     bookingId: bookingId
                 }))
             };
@@ -406,11 +394,12 @@ const PassportRead = () => {
             });
 
             if (response.status === 200) {
-                setToastMessage('Lưu thông tin khách hàng thành công!');
+                setIsPassportSaved(true);
+                setToastMessage('Đã lưu thông tin khách hàng thành công!');
                 setToastType('success');
                 setTimeout(() => {
                     setToastMessage('');
-                    window.location.reload(); 
+                    window.location.reload();
                 }, 1500);
             } else {
                 setToastMessage('Có lỗi ở hệ thống khi lưu thông tin khách hàng.');
@@ -418,7 +407,7 @@ const PassportRead = () => {
                 setTimeout(() => setToastMessage(''), 3000);
             }
         } catch (error) {
-            setToastMessage('Đã có dữ liệu của Passport trong hệ thống.');
+            setToastMessage('Đã có số Passport trong hệ thống.');
             setToastType('error');
             setTimeout(() => setToastMessage(''), 3000);
         }
@@ -469,17 +458,6 @@ const PassportRead = () => {
         return regex.test(dateString);
     };
 
-    const formatGender = (gender) => {
-        const lowerCaseGender = gender?.toLowerCase();
-        if (lowerCaseGender === 'f' || lowerCaseGender === 'nữ' || lowerCaseGender === 'nu' || lowerCaseGender === 'N/A') {
-            return 'Nữ';
-        } else if (lowerCaseGender === 'm' || lowerCaseGender === 'nam' || lowerCaseGender === 'male' || lowerCaseGender === 'N/A') {
-            return 'Nam';
-        } else {
-            return 'N/A';
-        }
-    };
-
     const formatDateToEtour = (dateString) => {
         try {
             if (isDateFormatted(dateString)) {
@@ -498,16 +476,98 @@ const PassportRead = () => {
     //#endregion
 
     //#region Delete object
-    const handleDeleteObject = (passportNo) => {
+    const handleDeleteObject = async (passportNo) => {
+        const queryParams = new URLSearchParams(window.location.search);
+        const bookingId = queryParams.get('bookingId');
+
+        if (!bookingId) {
+            setToastMessage('Không tìm thấy Booking ID.');
+            setToastType('error');
+            return;
+        }
+
+        // Kiểm tra xem khách hàng đã lưu trong DB hay chưa
+        const customerToDelete = mergedCustomers.find(customer => customer.passportCustomer?.passportNo === passportNo);
+
+        // Cập nhật UI để xóa khách hàng
         const updatedMergedCustomers = mergedCustomers.map(customer => {
             if (customer.passportCustomer?.passportNo === passportNo) {
-                return { ...customer, passportCustomer: null };
+                return { ...customer, passportCustomer: null }; // Xóa khỏi UI
             }
             return customer;
         });
 
-        setMergedCustomers(updatedMergedCustomers);
+        if (customerToDelete) {
+            // Nếu đã lưu trong DB, gọi API để xóa
+            try {
+                const response = await axios.delete(`http://108.108.110.73:1212/api/Customers/delete/${bookingId}/${passportNo}`, {
+                    headers: {
+                        'accept': '*/*'
+                    }
+                });
+
+                if (response.status === 200) {
+                    setMergedCustomers(updatedMergedCustomers);
+                    setToastMessage('Xóa thông tin khách hàng thành công!');
+                    setToastType('success');
+                    setTimeout(() => {
+                        setToastMessage('');
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    setToastMessage('Có lỗi trong quá trình xóa thông tin khách hàng.');
+                    setToastType('error');
+                    setTimeout(() => {
+                        setToastMessage('');
+                        window.location.reload();
+                    }, 1500);
+                }
+            } catch (error) {
+                // setToastMessage('Đã có lỗi xảy ra khi xóa thông tin khách hàng.');
+                setToastType('error');
+                // setTimeout(() => {
+                //     setToastMessage('');
+                // }, 1500);
+            }
+        } else {
+            // Nếu chưa lưu trong DB, chỉ cần xóa UI và không cần gọi API
+            setToastMessage('Đã xóa thông tin khách hàng.');
+            setToastType('success');
+            setTimeout(() => {
+                setToastMessage('');
+            }, 1500);
+        }
     };
+
+    const handleDeleteNewPassport = async (passportNo) => {
+        const queryParams = new URLSearchParams(window.location.search);
+        const bookingId = queryParams.get('bookingId');
+
+        if (!bookingId) {
+            setToastMessage('Không tìm thấy Booking ID.');
+            setToastType('error');
+            return;
+        }
+
+        // Cập nhật UI để xóa khách hàng
+        const updatedMergedCustomers = newPassports.map(customer => {
+            if (customer.passportCustomer?.passportNo === passportNo) {
+                return { ...customer, passportCustomer: null, imageUrl: "" }; // Xóa khỏi UI
+            }
+            return customer;
+        });
+
+        // chỉ cần xóa UI và không cần gọi API
+        setNewPassports(updatedMergedCustomers);
+        setToastMessage('Đã xóa thông tin khách hàng.');
+        setToastType('success');
+        setTimeout(() => {
+            setToastMessage('');
+        }, 1500);
+    };
+
+
+
 
     //#endregion
 
@@ -515,6 +575,10 @@ const PassportRead = () => {
     const handleCopyToClipboard = (event) => {
         event.preventDefault();
 
+        //* Gọi đến hàm lưu 
+        // handleSave();
+
+        // * Cập nhật lên etour
         const passportData = mergedCustomers.map(({ passportCustomer }) => {
             return {
                 fullName: passportCustomer?.fullName || '',
@@ -558,8 +622,10 @@ const PassportRead = () => {
     const indexOfFirstCustomer = indexOfLastCustomer - customersPerPage;
     const totalPages = Math.ceil(mergedCustomers.length / customersPerPage);
 
-    const currentCustomers = mergedCustomers.slice(indexOfFirstCustomer, indexOfLastCustomer);
+    // const currentCustomers = mergedCustomers.slice(indexOfFirstCustomer, indexOfLastCustomer);
+    const savedCustomerList = mergedCustomers.slice(indexOfFirstCustomer, indexOfLastCustomer);
 
+    const currentCustomers = newPassports.slice(indexOfFirstCustomer, indexOfLastCustomer);
 
     const handlePageChange = (pageNumber) => {
         setCurrentPage(pageNumber);
@@ -605,9 +671,9 @@ const PassportRead = () => {
                         className="file-input file-input-bordered file-input-accent max-w-xs w-full flex-none" />
                 </label>
             </div>
-            <div>
+            {/* <div>
                 <PreviewImageLayout previewImage={previewImage} />
-            </div>
+            </div> */}
             <div className="w-full justify-center py-6">
                 <div className="gap-4 mobile:flex mobile:flex-col">
                     <div className="mobile:p-4">
@@ -624,56 +690,114 @@ const PassportRead = () => {
                             handleImageClick={handleImageClick}
                             previewImage={previewImage}
                             handleClose={handleClose}
-                        // qrCodeUrl={qrCodeUrl}
                         />
                         <ToastMessageLayout toastMessage={toastMessage} toastType={toastType} />
-                        {currentCustomers.length > 0 ? (
-                            currentCustomers.map((customerPair, index) => {
-                                const etourCustomer = customerPair.bookingCustomer;
-                                const passportCustomer = customerPair.passportCustomer;
-                                const displayCustomer = etourCustomer || passportCustomer;
-                                const imageUrl = customerPair.imageUrl || displayCustomer?.imageUrl;
-
-                                return (
-                                    <div className="p-4 rounded-2xl grid grid-cols-2 gap-4 mobile:flex mobile:flex-col"
-                                        key={index}>
-                                        <CustomersEtourLayout key={index}
-                                            customerPair={customerPair}
-                                            index={index}
-                                            activeCustomer={activeCustomer}
-                                            setActiveCustomer={setActiveCustomer}
-                                            loading={loading}
-                                            progress={progress} />
-                                        <PassportCard key={index}
-                                            passportCustomer={passportCustomer}
-                                            etourCustomer={etourCustomer}
-                                            loadingPassports={loadingPassports}
-                                            progress={progress}
-                                            handleDeleteObject={handleDeleteObject}
-                                            onSave={handleSave}
-                                        />
-                                    </div>
-                                );
-                            })
-                        ) : (
-                            <div className="flex flex-col justify-center items-center py-4">
-                                {loading ? (
-                                    <div className='flex items-center justify-center gap-4'>
-                                        <p className='font-semibold flex justify-center items-center text-center mt-4 gap-2'>
-                                            Đang tải dữ liệu khách hàng...
-                                        </p>
-                                        <span className="loading loading-spinner loading-lg translate-y-1"></span>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <p className='font-semibold flex justify-center items-center text-center mt-4 gap-2'>
-                                            Không có dữ liệu khách hàng
-                                            <UserRoundX />
-                                        </p>
-                                    </>
-                                )}
-                            </div>
-                        )}
+                        <div className='saved'>
+                            {savedCustomerList.length > 0 ? (
+                                savedCustomerList.map((customerPair, index) => {
+                                    const etourCustomer = customerPair.bookingCustomer;
+                                    const passportCustomer = customerPair.passportCustomer;
+                                    const displayCustomer = etourCustomer || passportCustomer;
+                                    const imageUrl = customerPair.imageUrl || displayCustomer?.imageUrl;
+                                    return (
+                                        <div className="p-4 rounded-2xl grid grid-cols-2 gap-4 mobile:flex mobile:flex-col"
+                                            key={index}>
+                                            <CustomersEtourLayout
+                                                key={`${index}-etour`}
+                                                customerPair={customerPair}
+                                                index={index}
+                                                activeCustomer={activeCustomer}
+                                                setActiveCustomer={setActiveCustomer}
+                                                loading={loading}
+                                                progress={progress}
+                                            />
+                                            <PassportCard key={`${index}-passport`}
+                                                passportCustomer={passportCustomer}
+                                                etourCustomer={etourCustomer}
+                                                loadingPassports={loadingPassports}
+                                                progress={progress}
+                                                handleDeleteObject={handleDeleteObject}
+                                                onSave={handleSave}
+                                                isEditable={false}
+                                            />
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <div className="flex flex-col justify-center items-center py-4">
+                                    {loading ? (
+                                        <div className='flex items-center justify-center gap-4'>
+                                            <p className='font-semibold flex justify-center items-center text-center mt-4 gap-2'>
+                                                Đang tải dữ liệu khách hàng...
+                                            </p>
+                                            <span className="loading loading-spinner loading-lg translate-y-1"></span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <p className='font-semibold flex justify-center items-center text-center mt-4 gap-2'>
+                                                Không có dữ liệu khách hàng đã lưu
+                                                <UserRoundX />
+                                            </p>
+                                        </>
+                                    )}
+                                </div>
+                            )}</div>
+                        <div className='divider' />
+                        <div className='flex justify-center items-center py-4'>
+                            <p className='text-xl font-semibold'>
+                                Danh sách khách hàng mới
+                            </p>
+                        </div>
+                        <div className='current'>
+                            {currentCustomers.length > 0 ? (
+                                currentCustomers.map((customerPair, index) => {
+                                    const etourCustomer = customerPair.bookingCustomer;
+                                    const passportCustomer = customerPair.passportCustomer;
+                                    const displayCustomer = etourCustomer || passportCustomer;
+                                    const imageUrl = customerPair.imageUrl || displayCustomer?.imageUrl;
+                                    return (
+                                        <div className="p-4 rounded-2xl grid grid-cols-2 gap-4 mobile:flex mobile:flex-col"
+                                            key={index}>
+                                            <CustomersEtourLayout
+                                                key={`${index}-newEtour`}
+                                                customerPair={customerPair}
+                                                index={index}
+                                                activeCustomer={activeCustomer}
+                                                setActiveCustomer={setActiveCustomer}
+                                                loading={loading}
+                                                progress={progress}
+                                            />
+                                            <PassportCard key={`${index}-newPassport`}
+                                                passportCustomer={passportCustomer}
+                                                etourCustomer={etourCustomer}
+                                                loadingPassports={loadingPassports}
+                                                progress={progress}
+                                                handleDeleteObject={handleDeleteNewPassport}
+                                                onSave={handleSave}
+                                            />
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <div className="flex flex-col justify-center items-center py-4">
+                                    {loadingPassports ? (
+                                        <div className='flex items-center justify-center gap-4'>
+                                            <p className='font-semibold flex justify-center items-center text-center mt-4 gap-2'>
+                                                Đang tải dữ liệu khách hàng...
+                                            </p>
+                                            <span className="loading loading-spinner loading-lg translate-y-1"></span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <p className='font-semibold flex justify-center items-center text-center mt-4 gap-2'>
+                                                Chưa có thông tin khách hàng mới
+                                                <UserRoundX />
+                                            </p>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

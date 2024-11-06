@@ -6,7 +6,7 @@ import React, { useState } from "react";
 import ToastMessageLayout from "../toast.jsx";
 
 /* eslint-disable react/prop-types */
-const PassportCard = ({ passportCustomer, etourCustomer, loadingPassports, progress, handleDeleteObject, onSave }) => {
+const PassportCard = ({ passportCustomer, etourCustomer, loadingPassports, progress, handleDeleteObject, isEditable = true }) => {
     const [toastMessage, setToastMessage] = useState('');
     const [toastType, setToastType] = useState('');
 
@@ -129,7 +129,7 @@ const PassportCard = ({ passportCustomer, etourCustomer, loadingPassports, progr
                                             </p>
                                             <p className='font-bold'>Số Passport:&nbsp;
                                                 <input
-                                                    className={(etourCustomer && cleanString(etourCustomer.documentNumber) !== cleanString(passportCustomer.passportNo)) ? "text-red-600 text-sm custom-input w-1/2 px-4 py-2 border border-gray-300 rounded-lg shadow-sm transition duration-300 ease-in-out transform focus:-translate-y-1 focus:outline-blue-300 hover:shadow-lg hover:border-blue-300 bg-yellow-100" : "text-sm custom-input w-1/2 px-4 py-2 border border-gray-300 rounded-lg shadow-sm transition duration-300 ease-in-out transform focus:-translate-y-1 focus:outline-blue-300 hover:shadow-lg hover:border-blue-300 bg-yellow-100"}
+                                                    className={(etourCustomer && cleanString(etourCustomer.visaInfor.documentNumber) !== cleanString(passportCustomer.passportNo)) ? "text-red-600 text-sm custom-input w-1/2 px-4 py-2 border border-gray-300 rounded-lg shadow-sm transition duration-300 ease-in-out transform focus:-translate-y-1 focus:outline-blue-300 hover:shadow-lg hover:border-blue-300 bg-yellow-100" : "text-sm custom-input w-1/2 px-4 py-2 border border-gray-300 rounded-lg shadow-sm transition duration-300 ease-in-out transform focus:-translate-y-1 focus:outline-blue-300 hover:shadow-lg hover:border-blue-300 bg-yellow-100"}
                                                     value={editedCustomer.passportNo || 'Chưa có thông tin'}
                                                     onChange={(e) => handleInputChange(e, 'passportNo')}
                                                     readOnly={!isEditing}
@@ -155,7 +155,7 @@ const PassportCard = ({ passportCustomer, etourCustomer, loadingPassports, progr
                                             </p>
                                             <p className='font-bold'>Số CCCD/CMND:&nbsp;
                                                 <input
-                                                    className={(etourCustomer && cleanString(etourCustomer.documentNumber) !== cleanString(passportCustomer.idCardNo)) ? "text-red-600 text-sm custom-input w-1/2 px-4 py-2 border border-gray-300 rounded-lg shadow-sm transition duration-300 ease-in-out transform focus:-translate-y-1 focus:outline-blue-300 hover:shadow-lg hover:border-blue-300 bg-yellow-100" : "text-sm custom-input w-1/2 px-4 py-2 border border-gray-300 rounded-lg shadow-sm transition duration-300 ease-in-out transform focus:-translate-y-1 focus:outline-blue-300 hover:shadow-lg hover:border-blue-300 bg-yellow-100"}
+                                                    className={(etourCustomer && cleanString(etourCustomer.idCardInfor.documentNumber) !== cleanString(passportCustomer.idCardNo)) ? "text-red-600 text-sm custom-input w-1/2 px-4 py-2 border border-gray-300 rounded-lg shadow-sm transition duration-300 ease-in-out transform focus:-translate-y-1 focus:outline-blue-300 hover:shadow-lg hover:border-blue-300 bg-yellow-100" : "text-sm custom-input w-1/2 px-4 py-2 border border-gray-300 rounded-lg shadow-sm transition duration-300 ease-in-out transform focus:-translate-y-1 focus:outline-blue-300 hover:shadow-lg hover:border-blue-300 bg-yellow-100"}
                                                     value={editedCustomer.idCardNo}
                                                     onChange={(e) => handleInputChange(e, 'idCardNo')}
                                                     readOnly={!isEditing}
@@ -222,7 +222,7 @@ const PassportCard = ({ passportCustomer, etourCustomer, loadingPassports, progr
                                                 <span
                                                     className={(etourCustomer && formatDate(etourCustomer.idCardInfor.documentNumber) !== formatDate(passportCustomer.idCardNo)) ? "text-red-600" : ""}
                                                 >
-                                                   {editedCustomer?.idCardNo || 'Chưa có thông tin'}
+                                                    {editedCustomer?.idCardNo || 'Chưa có thông tin'}
                                                 </span>
                                             </p>
                                         </>
@@ -248,11 +248,13 @@ const PassportCard = ({ passportCustomer, etourCustomer, loadingPassports, progr
                                             </>
                                         ) : (
                                             <>
-                                                <div className="tooltip" data-tip="Chỉnh sửa thông tin">
-                                                    <button className="btn btn-info rounded-xl" onClick={toogleEdit}>
-                                                        <Pencil className="text-white size-5" />
-                                                    </button>
-                                                </div>
+                                                {isEditable && (
+                                                    <div className="tooltip" data-tip="Chỉnh sửa thông tin">
+                                                        <button className="btn btn-info rounded-xl" onClick={toogleEdit}>
+                                                            <Pencil className="text-white size-5" />
+                                                        </button>
+                                                    </div>
+                                                )}
                                                 <div className="tooltip" data-tip="Xóa">
                                                     <button
                                                         className="group relative flex h-12 w-12 flex-col items-center justify-center overflow-hidden rounded-xl bg-red-400 tooltip hover:bg-red-600"
@@ -264,7 +266,6 @@ const PassportCard = ({ passportCustomer, etourCustomer, loadingPassports, progr
                                             </>
                                         )}
                                     </div>
-
                                 </div>
                             </div>
                         </div>

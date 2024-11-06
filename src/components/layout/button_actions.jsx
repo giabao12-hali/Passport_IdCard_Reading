@@ -28,8 +28,8 @@ const ButtonActions = ({ loadingPassports, handleSave, handleCopyToClipboard }) 
                             </button>
                         </div>
                         <div>
-                            <button className="btn btn-accent no-animation rounded-xl mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>
-                                Lưu và cập nhật eTour
+                            <button className="btn btn-info no-animation rounded-xl mobile:h-auto mobile:text-balance" onClick={handleCopyToClipboard}>
+                                Cập nhật eTour
                             </button>
                         </div>
                         {/* <div>
